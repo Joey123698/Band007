@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>BandSync</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#06060F; --surf:#0C0C1E; --surf2:#111128; --surf3:#16163A;
+      --border:#1C1C40; --border2:#242455;
+      --text:#E2E2F5; --t2:#7070A8; --t3:#38386A;
+      --purple:#7C3AED; --gold:#F59E0B; --green:#10B981;
+      --red:#EF4444; --cyan:#06B6D4; --pink:#EC4899;
+      --glow:rgba(124,58,237,.15);
+      --r:10px; --r-sm:6px; --r-lg:14px; --r-pill:999px;
+    }
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;}
+    #root{height:100%;}
+    button,input,select,textarea{font-family:inherit;}
+    a{color:var(--cyan);}
+    ::-webkit-scrollbar{width:3px;height:3px;}
+    ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+    .spin{width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .fade{animation:fadeUp .2s ease;}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  </style>
+</head>
+<body>
+<div id="root"><div style="display:flex;height:100vh;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:var(--t2)"><div class="spin"></div></div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.28.4/babel.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ═══════════════════════════════════════════════════════
+//  ⚠️  FIREBASE CONFIG — HIER EINFÜGEN ⚠️
+// ═══════════════════════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            "PASTE_API_KEY_HERE",
+  authDomain:        "PASTE_AUTH_DOMAIN_HERE",
+  projectId:         "PASTE_PROJECT_ID_HERE",
+  storageBucket:     "PASTE_STORAGE_BUCKET_HERE",
+  messagingSenderId: "PASTE_SENDER_ID_HERE",
+  appId:             "PASTE_APP_ID_HERE",
+};
+
+// ═══════════════════════════════════════════════════════
+//  THEME SYSTEM
+// ═══════════════════════════════════════════════════════
+const THEMES = {
+  'Dark Studio':  { bg:'#06060F',surf:'#0C0C1E',surf2:'#111128',surf3:'#16163A',border:'#1C1C40',border2:'#242455',purple:'#7C3AED',gold:'#F59E0B',green:'#10B981',red:'#EF4444',cyan:'#06B6D4',pink:'#EC4899',text:'#E2E2F5',t2:'#7070A8',t3:'#38386A' },
+  'Purple Night': { bg:'#080010',surf:'#0D0020',surf2:'#130030',surf3:'#190040',border:'#220058',border2:'#2E0070',purple:'#9333EA',gold:'#E879F9',green:'#10B981',red:'#EF4444',cyan:'#A855F7',pink:'#EC4899',text:'#F0E8FF',t2:'#9070C0',t3:'#4A3080' },
+  'Ocean':        { bg:'#020B14',surf:'#051525',surf2:'#072030',surf3:'#0A2B40',border:'#0D3A55',border2:'#104A6A',purple:'#0891B2',gold:'#22D3EE',green:'#34D399',red:'#F87171',cyan:'#38BDF8',pink:'#67E8F9',text:'#E0F7FF',t2:'#6BAACC',t3:'#2A6080' },
+  'Forest':       { bg:'#030C05',surf:'#061A0A',surf2:'#0A2410',surf3:'#0E3016',border:'#123C1C',border2:'#164824',purple:'#059669',gold:'#34D399',green:'#4ADE80',red:'#EF4444',cyan:'#10B981',pink:'#6EE7B7',text:'#E0FFE8',t2:'#60A870',t3:'#2A5A35' },
+  'Rot & Gold':   { bg:'#100808',surf:'#1C0F0F',surf2:'#241616',surf3:'#2C1E1E',border:'#3A2424',border2:'#4A2E2E',purple:'#DC2626',gold:'#F59E0B',green:'#10B981',red:'#EF4444',cyan:'#F97316',pink:'#FB7185',text:'#FFF0F0',t2:'#B08080',t3:'#6A4040' },
+};
+const FONTS = {
+  'System':     '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+  'Inter':      '"Inter",system-ui,sans-serif',
+  'Monospace':  '"JetBrains Mono","Courier New",monospace',
+  'Playfair':   '"Playfair Display",Georgia,serif',
+};
+const THEME_LS = 'bandsync-design';
+const loadDesign = () => { try{ return JSON.parse(localStorage.getItem(THEME_LS))||{theme:'Dark Studio',font:'System',radius:10}; }catch{ return {theme:'Dark Studio',font:'System',radius:10}; } };
+const applyDesign = ({theme,font,radius}) => {
+  const t = THEMES[theme]||THEMES['Dark Studio'];
+  const r = radius??10;
+  const root = document.documentElement;
+  Object.entries(t).forEach(([k,v])=>root.style.setProperty(`--${k.replace(/([A-Z])/g,'-$1').toLowerCase()}`,v));
+  root.style.setProperty('--purple',t.purple);
+  root.style.setProperty('--glow',t.purple+'26');
+  root.style.setProperty('--r',`${r}px`);
+  root.style.setProperty('--r-sm',`${Math.max(2,Math.round(r*.6))}px`);
+  root.style.setProperty('--r-lg',`${Math.round(r*1.4)}px`);
+  document.body.style.fontFamily = FONTS[font]||FONTS['System'];
+};
+
+// ═══════════════════════════════════════════════════════
+//  CONSTANTS (German)
+// ═══════════════════════════════════════════════════════
+const DAYS_DE    = ['Mo','Di','Mi','Do','Fr','Sa','So'];
+const HOURS      = [8,9,10,11,12,13,14,15,16,17,18,19,20,21];
+const BAND_ROLES = ['Lead-Gesang','Background-Gesang','Lead-Gitarre','Rhythmusgitarre','Bass','Schlagzeug','Keyboard','Violine','Sonstiges'];
+const SONG_ROLES = ['Lead-Gesang','Hintergrundgesang','Gitarren-Solo','Rhythmusgitarre','Bassline','Schlagzeug','Keyboard','Bandleader','Mix/Technik'];
+const GENRES     = ['Pop','Rock','Indie','Jazz','R&B/Soul','Folk','Acoustic','Ballade','Alternative','K-Pop','Sonstiges'];
+const STATUS_MAP = {
+  suggested:  {label:'Vorschlag',         color:'#6366F1',bg:'rgba(99,102,241,.15)'},
+  practicing: {label:'In Übung',          color:'#3B82F6',bg:'rgba(59,130,246,.15)'},
+  needs_work: {label:'Überarbeitung nötig',color:'#F59E0B',bg:'rgba(245,158,11,.15)'},
+  ready:      {label:'Bühnenreif',        color:'#10B981',bg:'rgba(16,185,129,.15)'},
+};
+const AVATARS = ['🎤','🎸','🥁','🎹','🎺','🎻','🎷','🪗','🦁','🐺','🦊','🐉','⚡','🔥','💎','🌙','🎵','🎶'];
+const ROLE_COLORS = {'Lead-Gesang':'#EC4899','Background-Gesang':'#F472B6','Lead-Gitarre':'#8B5CF6','Rhythmusgitarre':'#A78BFA','Bass':'#06B6D4','Schlagzeug':'#F59E0B','Keyboard':'#10B981','Violine':'#EF4444','Sonstiges':'#9CA3AF'};
+
+// ═══════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════
+const uid      = () => Math.random().toString(36).slice(2,9);
+const slotKey  = (d,h) => `${d}_${h}`;
+const parseSlot= k => { const[d,h]=k.split('_'); return{day:+d,hour:+h}; };
+const hlbl     = h => `${String(h).padStart(2,'0')}:00`;
+const nowDate  = () => new Date().toISOString().slice(0,10);
+const hasConfig= () => FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('PASTE_');
+
+let db=null, auth=null;
+const initFB = () => { try{ if(!firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG); db=firebase.firestore(); auth=firebase.auth(); return true; }catch{ return false; } };
+
+function computeBestSlots(allAvail, total){
+  const counts={};
+  DAYS_DE.forEach((_,d)=>HOURS.forEach(h=>{ const k=slotKey(d,h); counts[k]=0; Object.values(allAvail).forEach(a=>{ if(a&&a[k]) counts[k]++; }); }));
+  const sorted=Object.entries(counts).filter(([,c])=>c>0).sort((a,b)=>b[1]-a[1]);
+  return { counts, best:sorted[0]||null, total };
+}
+
+// ═══════════════════════════════════════════════════════
+//  SHARED UI
+// ═══════════════════════════════════════════════════════
+const rStyle  = (key='--r') => ({ borderRadius:`var(${key})` });
+function Card({children,style={},glow}){
+  return <div style={{background:'var(--surf)',border:`1px solid ${glow?'var(--border2)':'var(--border)'}`,borderRadius:'var(--r)',padding:16,boxShadow:glow?'0 0 24px var(--glow)':'none',...style}}>{children}</div>;
+}
+function Btn({onClick,children,color,style={},disabled,size='md'}){
+  const pad={sm:'5px 12px',md:'8px 16px',lg:'12px 24px'}[size];
+  const fs={sm:11,md:13,lg:15}[size];
+  return <button onClick={onClick} disabled={disabled} style={{padding:pad,borderRadius:'var(--r-sm)',background:color||'var(--surf2)',color:disabled?'var(--t3)':'var(--text)',fontSize:fs,fontWeight:600,border:'1px solid var(--border2)',opacity:disabled?.5:1,cursor:disabled?'default':'pointer',transition:'all .15s',...style}}>{children}</button>;
+}
+function PillBtn({active,onClick,children,color}){ return <button onClick={onClick} style={{padding:'5px 12px',borderRadius:'var(--r-pill)',border:'none',cursor:'pointer',fontSize:11,fontWeight:700,background:active?(color||'var(--purple)'):'var(--surf2)',color:active?'#fff':'var(--t2)',transition:'all .15s',whiteSpace:'nowrap'}}>{children}</button>; }
+function Badge({label,color,bg}){ return <span style={{fontSize:10,fontWeight:700,padding:'2px 8px',borderRadius:'var(--r-pill)',background:bg||'var(--surf3)',color:color||'var(--t2)',letterSpacing:.3,whiteSpace:'nowrap'}}>{label}</span>; }
+function Inp({value,onChange,placeholder,type='text',style={},onKeyDown,readOnly}){
+  return <input type={type} value={value} onChange={onChange} onKeyDown={onKeyDown} placeholder={placeholder} readOnly={readOnly} style={{width:'100%',padding:'9px 12px',background:'var(--bg)',border:'1px solid var(--border2)',borderRadius:'var(--r-sm)',color:'var(--text)',fontSize:13,outline:'none',boxSizing:'border-box',...style}}/>;
+}
+function Txta({value,onChange,placeholder,rows=3,style={}}){
+  return <textarea value={value} onChange={onChange} placeholder={placeholder} rows={rows} style={{width:'100%',padding:'9px 12px',background:'var(--bg)',border:'1px solid var(--border2)',borderRadius:'var(--r-sm)',color:'var(--text)',fontSize:13,outline:'none',resize:'vertical',boxSizing:'border-box',...style}}/>;
+}
+function Sel({value,onChange,options,style={}}){
+  return <select value={value} onChange={onChange} style={{width:'100%',padding:'9px 12px',background:'var(--bg)',border:'1px solid var(--border2)',borderRadius:'var(--r-sm)',color:'var(--text)',fontSize:13,outline:'none',boxSizing:'border-box',...style}}>
+    {options.map(o=><option key={o.value??o} value={o.value??o}>{o.label??o}</option>)}
+  </select>;
+}
+function Fld({label,children}){ return <div><div style={{fontSize:10,color:'var(--t2)',fontWeight:700,letterSpacing:.5,marginBottom:5,textTransform:'uppercase'}}>{label}</div>{children}</div>; }
+function Av({emoji,size=32,color}){ return <div style={{width:size,height:size,borderRadius:'50%',background:color||'var(--surf3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:size*.44,flexShrink:0,border:'1px solid var(--border2)'}}>{emoji||'🎵'}</div>; }
+function Empty({icon,title,sub}){ return <div style={{textAlign:'center',padding:'40px 20px',color:'var(--t3)'}}><div style={{fontSize:36,marginBottom:8,opacity:.5}}>{icon}</div><div style={{fontSize:14,fontWeight:700,color:'var(--t2)',marginBottom:4}}>{title}</div>{sub&&<div style={{fontSize:12,color:'var(--t3)',maxWidth:240,margin:'0 auto',lineHeight:1.6}}>{sub}</div>}</div>; }
+function Divider({label}){ return <div style={{display:'flex',alignItems:'center',gap:10,margin:'4px 0'}}><div style={{flex:1,height:1,background:'var(--border)'}}/>{label&&<span style={{fontSize:10,color:'var(--t3)',fontWeight:600,letterSpacing:.5}}>{label}</span>}<div style={{flex:1,height:1,background:'var(--border)'}}/></div>; }
+
+// ═══════════════════════════════════════════════════════
+//  AUTH
+// ═══════════════════════════════════════════════════════
+function AuthScreen(){
+  const[mode,setMode]=useState('login');
+  const[email,setEmail]=useState('');
+  const[pass,setPass]=useState('');
+  const[name,setName]=useState('');
+  const[role,setRole]=useState(BAND_ROLES[0]);
+  const[loading,setLoading]=useState(false);
+  const[err,setErr]=useState('');
+  const submit=async()=>{
+    if(!hasConfig()){setErr('Firebase-Konfiguration fehlt. Bitte einfügen.');return;}
+    setLoading(true);setErr('');
+    try{
+      if(mode==='login'){ await auth.signInWithEmailAndPassword(email,pass); }
+      else{
+        if(!name.trim()){setErr('Bitte Name eingeben.');setLoading(false);return;}
+        const c=await auth.createUserWithEmailAndPassword(email,pass);
+        await db.collection('users').doc(c.user.uid).set({displayName:name.trim(),email,role,avatar:AVATARS[Math.floor(Math.random()*AVATARS.length)],bio:'',skills:[],favoriteSongs:[],playableSongs:[],createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+      }
+    }catch(e){setErr(e.message||'Fehler.');}
+    setLoading(false);
+  };
+  return <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',padding:20,background:'radial-gradient(ellipse at 30% 20%,rgba(124,58,237,.12) 0%,transparent 60%)'}}>
+    <div style={{width:'100%',maxWidth:380}}>
+      <div style={{textAlign:'center',marginBottom:28}}>
+        <div style={{fontSize:44,marginBottom:8}}>🎸</div>
+        <div style={{fontSize:28,fontWeight:800,letterSpacing:-1,background:'linear-gradient(135deg,#8B5CF6,#EC4899)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>BandSync</div>
+        <div style={{fontSize:12,color:'var(--t2)',marginTop:4}}>Interne Plattform für deine Band</div>
+      </div>
+      <Card glow>
+        <div style={{display:'flex',gap:4,marginBottom:18,background:'var(--bg)',borderRadius:'var(--r-sm)',padding:4}}>
+          {['login','register'].map(m=><button key={m} onClick={()=>{setMode(m);setErr('');}} style={{flex:1,padding:'8px',borderRadius:'var(--r-sm)',border:'none',cursor:'pointer',fontSize:13,fontWeight:600,background:mode===m?'var(--surf2)':'transparent',color:mode===m?'var(--text)':'var(--t2)'}}>{m==='login'?'Anmelden':'Registrieren'}</button>)}
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          {mode==='register'&&<Fld label="Name"><Inp value={name} onChange={e=>setName(e.target.value)} placeholder="Dein Name..."/></Fld>}
+          {mode==='register'&&<Fld label="Rolle in der Band"><Sel value={role} onChange={e=>setRole(e.target.value)} options={BAND_ROLES}/></Fld>}
+          <Fld label="E-Mail"><Inp type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="name@beispiel.de"/></Fld>
+          <Fld label="Passwort"><Inp type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&submit()}/></Fld>
+        </div>
+        {err&&<div style={{marginTop:12,padding:'8px 12px',background:'rgba(239,68,68,.1)',border:'1px solid rgba(239,68,68,.3)',borderRadius:'var(--r-sm)',fontSize:12,color:'var(--red)'}}>{err}</div>}
+        <button onClick={submit} disabled={loading} style={{width:'100%',marginTop:14,padding:'12px',borderRadius:'var(--r)',border:'none',background:'linear-gradient(135deg,var(--purple),#5B21B6)',color:'#fff',fontWeight:700,fontSize:14,cursor:loading?'default':'pointer',opacity:loading?.7:1}}>
+          {loading?'Wird verarbeitet...':(mode==='login'?'Anmelden':'Konto erstellen')}
+        </button>
+      </Card>
+    </div>
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════
+//  BOTTOM NAV
+// ═══════════════════════════════════════════════════════
+function BottomNav({tab,setTab}){
+  const tabs=[{key:'dashboard',icon:'🏠',label:'Dashboard'},{key:'schedule',icon:'📅',label:'Probeplan'},{key:'songs',icon:'🎵',label:'Songs'},{key:'suggest',icon:'💡',label:'Vorschläge'},{key:'profile',icon:'👤',label:'Profil'}];
+  return <div style={{position:'fixed',bottom:0,left:0,right:0,background:'var(--surf)',borderTop:'1px solid var(--border)',display:'flex',zIndex:100,paddingBottom:'env(safe-area-inset-bottom)'}}>
+    {tabs.map(t=><button key={t.key} onClick={()=>setTab(t.key)} style={{flex:1,padding:'10px 4px 8px',border:'none',background:'transparent',display:'flex',flexDirection:'column',alignItems:'center',gap:3,cursor:'pointer'}}>
+      <span style={{fontSize:20,filter:tab===t.key?'none':'grayscale(.8) opacity(.45)'}}>{t.icon}</span>
+      <span style={{fontSize:9,fontWeight:600,color:tab===t.key?'var(--purple)':'var(--t3)'}}>{t.label}</span>
+    </button>)}
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════
+//  ATTENDANCE SECTION (used in Dashboard)
+// ═══════════════════════════════════════════════════════
+function AttendanceSection({session,user,profile}){
+  const[reason,setReason]=useState('');
+  const[showDeclineForm,setShowDeclineForm]=useState(false);
+  const[loading,setLoading]=useState(false);
+  const att=session.attendance||{};
+  const myStatus=att[user.uid];
+  const confirmed=Object.values(att).filter(v=>v.status==='confirmed');
+  const declined=Object.values(att).filter(v=>v.status==='declined');
+
+  const setAttendance=async(status)=>{
+    if(status==='declined'&&!reason.trim()&&!showDeclineForm){setShowDeclineForm(true);return;}
+    setLoading(true);
+    await db.collection('sessions').doc(session.id).update({
+      [`attendance.${user.uid}`]:{status,reason:status==='declined'?reason:'',name:profile.displayName,role:profile.role,avatar:profile.avatar||'🎵',updatedAt:new Date().toISOString()}
+    });
+    setShowDeclineForm(false);setReason('');setLoading(false);
+  };
+  const removeAttendance=async()=>{
+    const up={...att}; delete up[user.uid];
+    await db.collection('sessions').doc(session.id).update({attendance:up});
+  };
+
+  return <div style={{marginTop:12,paddingTop:12,borderTop:'1px solid var(--border)'}}>
+    <div style={{fontSize:11,fontWeight:700,color:'var(--t2)',letterSpacing:.5,marginBottom:10,textTransform:'uppercase'}}>Meine Teilnahme</div>
+    {myStatus ? <>
+      <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',borderRadius:'var(--r-sm)',background:myStatus.status==='confirmed'?'rgba(16,185,129,.1)':'rgba(239,68,68,.1)',border:`1px solid ${myStatus.status==='confirmed'?'rgba(16,185,129,.3)':'rgba(239,68,68,.3)'}`,marginBottom:10}}>
+        <span style={{fontSize:16}}>{myStatus.status==='confirmed'?'✅':'❌'}</span>
+        <span style={{fontSize:12,color:myStatus.status==='confirmed'?'var(--green)':'var(--red)',fontWeight:600,flex:1}}>{myStatus.status==='confirmed'?'Ich komme':'Abgesagt'}{myStatus.reason&&` — ${myStatus.reason}`}</span>
+        <button onClick={removeAttendance} style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:12}}>Ändern</button>
+      </div>
+    </> : <>
+      {showDeclineForm ? <div style={{display:'flex',flexDirection:'column',gap:8,marginBottom:10}}>
+        <Inp value={reason} onChange={e=>setReason(e.target.value)} placeholder="Grund (optional)..." style={{fontSize:12}}/>
+        <div style={{display:'flex',gap:6}}>
+          <Btn onClick={()=>setAttendance('declined')} disabled={loading} style={{background:'rgba(239,68,68,.15)',color:'var(--red)',border:'1px solid rgba(239,68,68,.3)',flex:1}}>{loading?'...':'Absagen bestätigen'}</Btn>
+          <Btn onClick={()=>setShowDeclineForm(false)} size="sm">Zurück</Btn>
+        </div>
+      </div> : <div style={{display:'flex',gap:8,marginBottom:10}}>
+        <button onClick={()=>setAttendance('confirmed')} disabled={loading} style={{flex:1,padding:'10px',borderRadius:'var(--r-sm)',border:'1px solid rgba(16,185,129,.4)',background:'rgba(16,185,129,.1)',color:'var(--green)',fontWeight:700,fontSize:13,cursor:'pointer'}}>✓ Ich komme</button>
+        <button onClick={()=>setShowDeclineForm(true)} style={{flex:1,padding:'10px',borderRadius:'var(--r-sm)',border:'1px solid rgba(239,68,68,.4)',background:'rgba(239,68,68,.1)',color:'var(--red)',fontWeight:700,fontSize:13,cursor:'pointer'}}>✗ Absagen</button>
+      </div>}
+    </>}
+
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+      <div style={{padding:'8px 10px',background:'rgba(16,185,129,.07)',borderRadius:'var(--r-sm)',border:'1px solid rgba(16,185,129,.2)'}}>
+        <div style={{fontSize:10,color:'var(--green)',fontWeight:700,marginBottom:6}}>ZUSAGEN ({confirmed.length})</div>
+        {confirmed.length===0&&<div style={{fontSize:11,color:'var(--t3)'}}>Noch niemand</div>}
+        {confirmed.map((m,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:5,marginBottom:3}}>
+          <span style={{fontSize:12}}>{m.avatar}</span>
+          <span style={{fontSize:11,color:'var(--text)'}}>{m.name}</span>
+        </div>)}
+      </div>
+      <div style={{padding:'8px 10px',background:'rgba(239,68,68,.07)',borderRadius:'var(--r-sm)',border:'1px solid rgba(239,68,68,.2)'}}>
+        <div style={{fontSize:10,color:'var(--red)',fontWeight:700,marginBottom:6}}>ABSAGEN ({declined.length})</div>
+        {declined.length===0&&<div style={{fontSize:11,color:'var(--t3)'}}>Noch niemand</div>}
+        {declined.map((m,i)=><div key={i} style={{marginBottom:4}}>
+          <div style={{display:'flex',alignItems:'center',gap:5}}>
+            <span style={{fontSize:12}}>{m.avatar}</span>
+            <span style={{fontSize:11,color:'var(--t2)'}}>{m.name}</span>
+          </div>
+          {m.reason&&<div style={{fontSize:10,color:'var(--t3)',paddingLeft:20,marginTop:1}}>{m.reason}</div>}
+        </div>)}
+      </div>
+    </div>
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════════════════════════════
+function DashboardPage({user,profile}){
+  const[sessions,setSessions]=useState([]);
+  const[songs,setSongs]=useState([]);
+  const[members,setMembers]=useState([]);
+  const[loading,setLoading]=useState(true);
+  useEffect(()=>{
+    const u1=db.collection('sessions').where('status','==','upcoming').orderBy('date').limit(1).onSnapshot(s=>{setSessions(s.docs.map(d=>({id:d.id,...d.data()})));setLoading(false);});
+    const u2=db.collection('songs').where('status','in',['practicing','needs_work','ready']).orderBy('createdAt','desc').limit(8).onSnapshot(s=>setSongs(s.docs.map(d=>({id:d.id,...d.data()}))));
+    const u3=db.collection('users').onSnapshot(s=>setMembers(s.docs.map(d=>({id:d.id,...d.data()}))));
+    return()=>{u1();u2();u3();};
+  },[]);
+  const upcoming=sessions[0];
+  const stats=[{label:'Mitglieder',value:members.length,icon:'👥'},{label:'In Übung',value:songs.filter(s=>s.status==='practicing').length,icon:'🎵'},{label:'Bühnenreif',value:songs.filter(s=>s.status==='ready').length,icon:'🎤'}];
+  return <div style={{padding:'16px 16px 90px'}}>
+    <div style={{marginBottom:18}}>
+      <div style={{fontSize:11,color:'var(--t2)'}}>Willkommen zurück,</div>
+      <div style={{fontSize:22,fontWeight:800}}>{profile?.displayName} {profile?.avatar}</div>
+    </div>
+    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:18}}>
+      {stats.map(s=><Card key={s.label} style={{padding:'12px 10px',textAlign:'center'}}>
+        <div style={{fontSize:18}}>{s.icon}</div>
+        <div style={{fontSize:22,fontWeight:800,color:'var(--purple)',lineHeight:1.2}}>{s.value}</div>
+        <div style={{fontSize:9,color:'var(--t2)',marginTop:1}}>{s.label}</div>
+      </Card>)}
+    </div>
+    <div style={{fontSize:11,fontWeight:700,color:'var(--t2)',letterSpacing:.5,textTransform:'uppercase',marginBottom:10}}>Nächste Probe</div>
+    {loading?<Card><div style={{display:'flex',justifyContent:'center',padding:20}}><div className="spin"/></div></Card>
+    :upcoming?<Card glow style={{position:'relative',overflow:'hidden'}}>
+      <div style={{position:'absolute',top:0,left:0,right:0,height:3,background:'linear-gradient(90deg,var(--purple),var(--pink))'}}/>
+      <div style={{display:'flex',alignItems:'flex-start',gap:12,marginBottom:10}}>
+        <div style={{fontSize:32}}>🎸</div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:16,fontWeight:800}}>{upcoming.title||'Probe'}</div>
+          <div style={{fontSize:12,color:'var(--t2)',marginTop:3}}>📅 {upcoming.date} · ⏰ {upcoming.time||'--:--'}</div>
+          <div style={{fontSize:12,color:'var(--t2)',marginTop:2}}>📍 {upcoming.location||'Ort ausstehend'}</div>
+        </div>
+      </div>
+      {upcoming.leadName&&<div style={{fontSize:12,marginBottom:8}}><span style={{color:'var(--t2)'}}>Verantwortlich: </span><span style={{color:'var(--gold)',fontWeight:700}}>⭐ {upcoming.leadName}</span></div>}
+      {upcoming.setlist?.length>0&&<div style={{marginBottom:8}}>
+        <div style={{fontSize:10,color:'var(--t3)',marginBottom:5}}>Setliste ({upcoming.setlist.length} Songs)</div>
+        {upcoming.setlist.map((s,i)=><div key={i} style={{fontSize:12,padding:'4px 0',borderTop:i>0?'1px solid var(--border)':undefined,color:'var(--t2)'}}>🎵 {s.title} — <span style={{color:'var(--t3)'}}>{s.artist}</span></div>)}
+      </div>}
+      <AttendanceSection session={upcoming} user={user} profile={profile}/>
+    </Card>:<Card><Empty icon="📅" title="Noch keine Probe geplant" sub="Im Probeplan-Tab eine neue Probe erstellen."/></Card>}
+    <div style={{fontSize:11,fontWeight:700,color:'var(--t2)',letterSpacing:.5,textTransform:'uppercase',margin:'20px 0 10px'}}>Bandmitglieder</div>
+    <div style={{display:'flex',flexDirection:'column',gap:7}}>
+      {members.map(m=><Card key={m.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px'}}>
+        <Av emoji={m.avatar} size={38} color={(ROLE_COLORS[m.role]||'#888')+'22'}/>
+        <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13}}>{m.displayName}</div><div style={{fontSize:11,color:ROLE_COLORS[m.role]||'var(--t2)',marginTop:1}}>{m.role}</div></div>
+        {m.id===user.uid&&<Badge label="Ich" color="var(--purple)" bg="rgba(124,58,237,.15)"/>}
+      </Card>)}
+    </div>
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SCHEDULE
+// ═══════════════════════════════════════════════════════
+function SchedulePage({user,profile}){
+  const[myAvail,setMyAvail]=useState({});
+  const[allAvail,setAllAvail]=useState({});
+  const[members,setMembers]=useState([]);
+  const[sessions,setSessions]=useState([]);
+  const[locations,setLocations]=useState([]);
+  const[songs,setSongs]=useState([]);
+  const[view,setView]=useState('avail');
+  const[sf,setSF]=useState({title:'',date:nowDate(),time:'',location:'',leadId:'',notes:'',setlist:[]});
+  const[newLoc,setNewLoc]=useState('');
+  const[saving,setSaving]=useState(false);
+  const dragging=useRef(false),dragMode=useRef('set');
+  useEffect(()=>{
+    const u1=db.collection('availability').doc(user.uid).onSnapshot(d=>{if(d.exists)setMyAvail(d.data().slots||{});});
+    const u2=db.collection('availability').onSnapshot(s=>{const a={};s.docs.forEach(d=>{a[d.id]=d.data().slots||{};});setAllAvail(a);});
+    const u3=db.collection('users').onSnapshot(s=>setMembers(s.docs.map(d=>({id:d.id,...d.data()}))));
+    const u4=db.collection('sessions').orderBy('date','desc').limit(5).onSnapshot(s=>setSessions(s.docs.map(d=>({id:d.id,...d.data()}))));
+    const u5=db.collection('locations').onSnapshot(s=>setLocations(s.docs.map(d=>({id:d.id,...d.data()}))));
+    const u6=db.collection('songs').where('status','in',['practicing','ready']).onSnapshot(s=>setSongs(s.docs.map(d=>({id:d.id,...d.data()}))));
+    return()=>{u1();u2();u3();u4();u5();u6();};
+  },[]);
+  const saveAvail=async slots=>{await db.collection('availability').doc(user.uid).set({slots,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});};
+  const toggle=(d,h)=>{const k=slotKey(d,h);const n={...myAvail,[k]:!myAvail[k]};if(!n[k])delete n[k];setMyAvail(n);saveAvail(n);};
+  const handleMD=(d,h)=>{dragging.current=true;dragMode.current=myAvail[slotKey(d,h)]?'unset':'set';toggle(d,h);};
+  const handleME=(d,h)=>{if(!dragging.current)return;const k=slotKey(d,h);const n={...myAvail,[k]:dragMode.current==='set'};if(dragMode.current!=='set')delete n[k];setMyAvail(n);saveAvail(n);};
+  useEffect(()=>{const up=()=>{dragging.current=false;};window.addEventListener('mouseup',up);window.addEventListener('touchend',up);return()=>{window.removeEventListener('mouseup',up);window.removeEventListener('touchend',up);};},[]);
+  const{counts,best}=computeBestSlots(allAvail,members.length);
+  const maxCount=Math.max(...Object.values(counts).filter(Boolean),1);
+  const addLoc=async()=>{if(!newLoc.trim())return;await db.collection('locations').add({name:newLoc.trim(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});setNewLoc('');};
+  const createSession=async()=>{
+    if(!sf.date)return;setSaving(true);
+    const lead=members.find(m=>m.id===sf.leadId);
+    await db.collection('sessions').add({...sf,leadName:lead?.displayName||'',confirmedMembers:[],attendance:{},status:'upcoming',createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    setView('avail');setSaving(false);setSF({title:'',date:nowDate(),time:'',location:'',leadId:'',notes:'',setlist:[]});
+  };
+  const toggleSL=s=>{const ex=sf.setlist.find(x=>x.songId===s.id);setSF(f=>({...f,setlist:ex?f.setlist.filter(x=>x.songId!==s.id):[...f.setlist,{songId:s.id,title:s.title,artist:s.artist}]}));};
+  const bestLabel=best?(()=>{const{day,hour}=parseSlot(best[0]);return `${DAYS_DE[day]}, ${hlbl(hour)} — ${best[1]}/${members.length} Mitglieder verfügbar`;})():null;
+  return <div style={{padding:'16px 16px 90px'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+      <div style={{fontSize:18,fontWeight:800}}>📅 Probeplan</div>
+      <div style={{display:'flex',gap:5}}>
+        <PillBtn active={view==='avail'} onClick={()=>setView('avail')}>Verfügbarkeit</PillBtn>
+        <PillBtn active={view==='create'} onClick={()=>setView('create')}>+ Probe</PillBtn>
+      </div>
+    </div>
+    {view==='avail'&&<>
+      {bestLabel&&<Card glow style={{marginBottom:14,background:'rgba(124,58,237,.07)'}}>
+        <div style={{fontSize:10,fontWeight:700,color:'var(--purple)',letterSpacing:.5,marginBottom:3}}>⚡ OPTIMALE PROBEZEIT</div>
+        <div style={{fontSize:14,fontWeight:800}}>{bestLabel}</div>
+        <div style={{fontSize:11,color:'var(--t2)',marginTop:2}}>Zeitslot mit den meisten verfügbaren Mitgliedern</div>
+      </Card>}
+      <div style={{fontSize:10,fontWeight:700,color:'var(--t2)',letterSpacing:.5,marginBottom:8,display:'flex',justifyContent:'space-between'}}>
+        <span>MEINE VERFÜGBARKEIT (klicken/ziehen)</span>
+        <span style={{fontSize:9}}><span style={{color:'var(--green)'}}>● Ich</span> <span style={{color:'var(--purple)'}}>● Gruppe</span></span>
+      </div>
+      <div style={{overflowX:'auto',marginBottom:20,userSelect:'none'}}>
+        <div style={{minWidth:480}}>
+          <div style={{display:'grid',gridTemplateColumns:`44px repeat(${DAYS_DE.length},1fr)`,gap:2,marginBottom:3}}>
+            <div/>
+            {DAYS_DE.map((d,i)=><div key={i} style={{textAlign:'center',fontSize:10,fontWeight:700,color:'var(--t2)'}}>{d}</div>)}
+          </div>
+          {HOURS.map(h=><div key={h} style={{display:'grid',gridTemplateColumns:`44px repeat(${DAYS_DE.length},1fr)`,gap:2,marginBottom:2}}>
+            <div style={{fontSize:9,color:'var(--t3)',display:'flex',alignItems:'center',justifyContent:'flex-end',paddingRight:4}}>{hlbl(h)}</div>
+            {DAYS_DE.map((_,d)=>{
+              const k=slotKey(d,h);const mine=!!myAvail[k];const cnt=counts[k]||0;const intensity=cnt/maxCount;
+              return <div key={d} onMouseDown={()=>handleMD(d,h)} onMouseEnter={()=>handleME(d,h)} onTouchStart={()=>handleMD(d,h)}
+                style={{height:26,borderRadius:'var(--r-sm)',border:`1px solid ${mine?'var(--green)':cnt>0?'var(--purple)':'var(--border)'}`,background:mine?'rgba(16,185,129,.5)':cnt>0?`rgba(124,58,237,${intensity*.55})`:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                {cnt>0&&<span style={{fontSize:8,fontWeight:700,color:mine?'#fff':'var(--purple)',opacity:.9}}>{cnt}</span>}
+              </div>;
+            })}
+          </div>)}
+        </div>
+      </div>
+      {sessions.length>0&&<>
+        <div style={{fontSize:11,fontWeight:700,color:'var(--t2)',letterSpacing:.5,marginBottom:10,textTransform:'uppercase'}}>Letzte Proben</div>
+        {sessions.map(s=><Card key={s.id} style={{marginBottom:7,display:'flex',alignItems:'center',gap:10}}>
+          <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{s.title||'Probe'}</div><div style={{fontSize:11,color:'var(--t2)'}}>{s.date} · {s.time||''} · {s.location||''}</div></div>
+          <Badge label={s.status==='upcoming'?'Bevorstehend':s.status==='completed'?'Abgeschlossen':'Abgesagt'} color={s.status==='upcoming'?'var(--purple)':s.status==='completed'?'var(--green)':'var(--red)'} bg={s.status==='upcoming'?'rgba(124,58,237,.15)':s.status==='completed'?'rgba(16,185,129,.15)':'rgba(239,68,68,.15)'}/>
+        </Card>)}
+      </>}
+    </>}
+    {view==='create'&&<Card>
+      <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        <Fld label="Probenname"><Inp value={sf.title} onChange={e=>setSF(f=>({...f,title:e.target.value}))} placeholder="z.B. Probe vor dem Konzert..."/></Fld>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <Fld label="Datum"><Inp type="date" value={sf.date} onChange={e=>setSF(f=>({...f,date:e.target.value}))}/></Fld>
+          <Fld label="Uhrzeit"><Inp type="time" value={sf.time} onChange={e=>setSF(f=>({...f,time:e.target.value}))}/></Fld>
+        </div>
+        <Fld label="Probeort">
+          <Sel value={sf.location} onChange={e=>setSF(f=>({...f,location:e.target.value}))} options={[{value:'',label:'-- Ort auswählen --'},...locations.map(l=>({value:l.name,label:l.name})),{value:'Im Freien 🌿',label:'Im Freien 🌿 (Standard)'}]}/>
+          <div style={{display:'flex',gap:6,marginTop:7}}>
+            <Inp value={newLoc} onChange={e=>setNewLoc(e.target.value)} placeholder="Neuen Ort hinzufügen..." style={{fontSize:12}}/>
+            <Btn onClick={addLoc} size="sm">Hinzufügen</Btn>
+          </div>
+        </Fld>
+        <Fld label="Verantwortliche Person">
+          <Sel value={sf.leadId} onChange={e=>setSF(f=>({...f,leadId:e.target.value}))} options={[{value:'',label:'-- Später festlegen --'},...members.map(m=>({value:m.id,label:`${m.displayName} — ${m.role}`}))]}/>
+        </Fld>
+        <Fld label={`Setliste (${sf.setlist.length} ausgewählt)`}>
+          {songs.length===0?<div style={{fontSize:12,color:'var(--t3)',padding:'8px 0'}}>Noch keine Songs im Training. Songs im Songs-Tab hinzufügen.</div>:songs.map(s=>{const sel=sf.setlist.find(x=>x.songId===s.id);
+            return <div key={s.id} onClick={()=>toggleSL(s)} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',borderRadius:'var(--r-sm)',border:`1px solid ${sel?'var(--purple)':'var(--border)'}`,background:sel?'rgba(124,58,237,.1)':'transparent',cursor:'pointer',marginBottom:5}}>
+              <div style={{width:14,height:14,borderRadius:3,background:sel?'var(--purple)':'transparent',border:`2px solid ${sel?'var(--purple)':'var(--border2)'}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,color:'#fff',flexShrink:0}}>{sel?'✓':''}</div>
+              <span style={{fontSize:12,flex:1}}>{s.title} — <span style={{color:'var(--t2)'}}>{s.artist}</span></span>
+              <Badge label={STATUS_MAP[s.status]?.label} color={STATUS_MAP[s.status]?.color} bg={STATUS_MAP[s.status]?.bg}/>
+            </div>;})}
+        </Fld>
+        <Fld label="Notizen"><Txta value={sf.notes} onChange={e=>setSF(f=>({...f,notes:e.target.value}))} placeholder="Besondere Hinweise, Ausrüstung, Vorbereitung..."/></Fld>
+        <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+          <Btn onClick={()=>setView('avail')} style={{color:'var(--t2)'}}>Abbrechen</Btn>
+          <Btn onClick={createSession} disabled={saving||!sf.date} style={{background:'linear-gradient(135deg,var(--purple),#5B21B6)',color:'#fff',border:'none'}}>{saving?'Wird erstellt...':'Probe erstellen ✓'}</Btn>
+        </div>
+      </div>
+    </Card>}
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SONGS PAGE
+// ═══════════════════════════════════════════════════════
+function SongsPage({user,profile}){
+  const[songs,setSongs]=useState([]);
+  const[filter,setFilter]=useState('all');
+  const[exp,setExp]=useState(null);
+  const[comments,setComments]=useState({});
+  const[newComment,setNewComment]=useState('');
+  const[members,setMembers]=useState([]);
+  const[editNotes,setEditNotes]=useState({});
+  const[addRole,setAddRole]=useState({});
+  useEffect(()=>{
+    const u1=db.collection('songs').where('status','in',['practicing','needs_work','ready']).orderBy('createdAt','desc').onSnapshot(s=>{setSongs(s.docs.map(d=>({id:d.id,...d.data()})));});
+    const u2=db.collection('users').onSnapshot(s=>setMembers(s.docs.map(d=>({id:d.id,...d.data()}))));
+    return()=>{u1();u2();};
+  },[]);
+  useEffect(()=>{
+    if(!exp)return;
+    const u=db.collection('comments').where('songId','==',exp).orderBy('createdAt').onSnapshot(s=>{setComments(p=>({...p,[exp]:s.docs.map(d=>({id:d.id,...d.data()}))}));});
+    return u;
+  },[exp]);
+  const filtered=filter==='all'?songs:songs.filter(s=>s.status===filter);
+  const updStatus=async(id,status)=>db.collection('songs').doc(id).update({status});
+  const saveNotes=async id=>db.collection('songs').doc(id).update({structureNotes:editNotes[id]||''});
+  const sendComment=async songId=>{if(!newComment.trim())return;await db.collection('comments').add({songId,userId:user.uid,userName:profile.displayName,userBandRole:profile.role,text:newComment.trim(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});setNewComment('');};
+  const addMyRole=async(songId,song)=>{const r=addRole[songId];if(!r?.songRole)return;const ex=song.roleAssignments||[];if(ex.find(x=>x.userId===user.uid))return;await db.collection('songs').doc(songId).update({roleAssignments:[...ex,{userId:user.uid,userName:profile.displayName,userBandRole:profile.role,songRole:r.songRole}]});setAddRole(p=>({...p,[songId]:{}}));};
+  const removeMyRole=async(songId,song)=>db.collection('songs').doc(songId).update({roleAssignments:(song.roleAssignments||[]).filter(x=>x.userId!==user.uid)});
+  return <div style={{padding:'16px 16px 90px'}}>
+    <div style={{fontSize:18,fontWeight:800,marginBottom:12}}>🎵 Songs in Übung</div>
+    <div style={{display:'flex',gap:5,marginBottom:14,overflowX:'auto',paddingBottom:3}}>
+      <PillBtn active={filter==='all'} onClick={()=>setFilter('all')}>Alle ({songs.length})</PillBtn>
+      {Object.entries(STATUS_MAP).filter(([k])=>k!=='suggested').map(([k,v])=><PillBtn key={k} active={filter===k} onClick={()=>setFilter(k)} color={v.color}>{v.label} ({songs.filter(s=>s.status===k).length})</PillBtn>)}
+    </div>
+    {!filtered.length&&<Empty icon="🎵" title="Keine Songs" sub="Songs im Vorschläge-Tab vorschlagen und in die Übungsliste verschieben."/>}
+    {filtered.map(song=>{
+      const isOpen=exp===song.id;const s=STATUS_MAP[song.status];const myRole=(song.roleAssignments||[]).find(r=>r.userId===user.uid);
+      return <div key={song.id} style={{marginBottom:10}}>
+        <Card style={{borderColor:isOpen?'var(--border2)':undefined}}>
+          <div onClick={()=>setExp(isOpen?null:song.id)} style={{display:'flex',alignItems:'center',gap:10,cursor:'pointer'}}>
+            <div style={{flex:1}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4,flexWrap:'wrap'}}>
+                <span style={{fontWeight:700,fontSize:14}}>{song.title}</span>
+                <Badge label={s?.label} color={s?.color} bg={s?.bg}/>
+              </div>
+              <div style={{fontSize:11,color:'var(--t2)'}}>{song.artist}{song.genre&&` · ${song.genre}`}</div>
+              {myRole&&<div style={{fontSize:10,color:'var(--cyan)',marginTop:2}}>Meine Rolle: {myRole.songRole}</div>}
+            </div>
+            <span style={{fontSize:10,color:'var(--t3)',flexShrink:0}}>{isOpen?'▲':'▼'}</span>
+          </div>
+          {isOpen&&<div style={{borderTop:'1px solid var(--border)',marginTop:12,paddingTop:12,display:'flex',flexDirection:'column',gap:14}}>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:'var(--t2)',letterSpacing:.5,marginBottom:7}}>STATUS</div>
+              <div style={{display:'flex',gap:5,flexWrap:'wrap'}}>
+                {Object.entries(STATUS_MAP).filter(([k])=>k!=='suggested').map(([k,v])=><button key={k} onClick={()=>updStatus(song.id,k)} style={{padding:'5px 10px',borderRadius:'var(--r-sm)',border:`1px solid ${song.status===k?v.color:'var(--border)'}`,background:song.status===k?v.bg:'transparent',color:song.status===k?v.color:'var(--t3)',fontSize:11,fontWeight:600,cursor:'pointer'}}>{v.label}</button>)}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:'var(--t2)',letterSpacing:.5,marginBottom:6}}>STRUKTURNOTIZEN</div>
+              <Txta value={editNotes[song.id]??song.structureNotes??''} onChange={e=>setEditNotes(p=>({...p,[song.id]:e.target.value}))} placeholder="Intro verlängern, Outro ändern, Tonart wechseln..." rows={2}/>
+              <Btn onClick={()=>saveNotes(song.id)} size="sm" style={{marginTop:6}}>Notizen speichern</Btn>
+            </div>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:'var(--t2)',letterSpacing:.5,marginBottom:8}}>ROLLENVERTEILUNG</div>
+              {(song.roleAssignments||[]).map((r,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'5px 0',borderBottom:'1px solid var(--border)'}}>
+                <Av emoji={members.find(m=>m.id===r.userId)?.avatar} size={24}/>
+                <span style={{fontSize:12,flex:1}}>{r.userName}</span>
+                <Badge label={r.userBandRole} color={ROLE_COLORS[r.userBandRole]} bg='var(--surf3)'/>
+                <Badge label={r.songRole} color='var(--cyan)' bg='rgba(6,182,212,.1)'/>
+                {r.userId===user.uid&&<button onClick={()=>removeMyRole(song.id,song)} style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:14}}>×</button>}
+              </div>)}
+              {!myRole&&<div style={{display:'flex',gap:6,marginTop:8}}>
+                <Sel value={addRole[song.id]?.songRole||''} onChange={e=>setAddRole(p=>({...p,[song.id]:{songRole:e.target.value}}))} options={[{value:'',label:'Meine Rolle auswählen...'},...SONG_ROLES]} style={{flex:1,fontSize:12}}/>
+                <Btn onClick={()=>addMyRole(song.id,song)} size="sm" style={{background:'var(--purple)',color:'#fff',border:'none'}}>+</Btn>
+              </div>}
+            </div>
+            <div>
+              <div style={{fontSize:10,fontWeight:700,color:'var(--t2)',letterSpacing:.5,marginBottom:8}}>KOMMENTARE & FEEDBACK</div>
+              {(comments[song.id]||[]).map(c=><div key={c.id} style={{display:'flex',gap:8,marginBottom:8}}>
+                <Av emoji={members.find(m=>m.id===c.userId)?.avatar} size={26}/>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:3}}>
+                    <span style={{fontSize:11,fontWeight:700}}>{c.userName}</span>
+                    <Badge label={c.userBandRole} color={ROLE_COLORS[c.userBandRole]} bg='var(--surf3)'/>
+                  </div>
+                  <div style={{fontSize:12,color:'var(--t2)',lineHeight:1.5,padding:'6px 10px',background:'var(--bg)',borderRadius:'var(--r-sm)',border:'1px solid var(--border)'}}>{c.text}</div>
+                </div>
+              </div>)}
+              <div style={{display:'flex',gap:7,marginTop:8}}>
+                <Inp value={newComment} onChange={e=>setNewComment(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&(e.preventDefault(),sendComment(song.id))} placeholder="Kommentar schreiben..." style={{flex:1}}/>
+                <Btn onClick={()=>sendComment(song.id)} style={{background:'var(--purple)',color:'#fff',border:'none',padding:'0 14px',flexShrink:0}}>→</Btn>
+              </div>
+            </div>
+          </div>}
+        </Card>
+      </div>;})}
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SUGGEST PAGE
+// ═══════════════════════════════════════════════════════
+function SuggestPage({user,profile}){
+  const[songs,setSongs]=useState([]);
+  const[showForm,setShowForm]=useState(false);
+  const[form,setForm]=useState({title:'',artist:'',genre:'',youtubeLink:'',spotifyLink:''});
+  const[saving,setSaving]=useState(false);
+  const[moving,setMoving]=useState(null);
+  useEffect(()=>{
+    const u=db.collection('songs').where('status','==','suggested').orderBy('createdAt','desc').onSnapshot(s=>{setSongs(s.docs.map(d=>({id:d.id,...d.data()})));});
+    return u;
+  },[]);
+  const submit=async()=>{if(!form.title||!form.artist)return;setSaving(true);await db.collection('songs').add({...form,status:'suggested',suggestedBy:user.uid,suggestedByName:profile.displayName,votes:[user.uid],roleAssignments:[],structureNotes:'',createdAt:firebase.firestore.FieldValue.serverTimestamp()});setForm({title:'',artist:'',genre:'',youtubeLink:'',spotifyLink:''});setShowForm(false);setSaving(false);};
+  const vote=async song=>{const voted=song.votes?.includes(user.uid);await db.collection('songs').doc(song.id).update({votes:voted?firebase.firestore.FieldValue.arrayRemove(user.uid):firebase.firestore.FieldValue.arrayUnion(user.uid)});};
+  const moveToPractice=async song=>{setMoving(song.id);await db.collection('songs').doc(song.id).update({status:'practicing',movedAt:firebase.firestore.FieldValue.serverTimestamp()});setMoving(null);};
+  return <div style={{padding:'16px 16px 90px'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+      <div style={{fontSize:18,fontWeight:800}}>💡 Vorschläge</div>
+      <Btn onClick={()=>setShowForm(v=>!v)} style={{background:showForm?'var(--surf3)':'var(--purple)',color:'#fff',border:'none'}}>{showForm?'Schließen':'+ Vorschlag'}</Btn>
+    </div>
+    {showForm&&<Card style={{marginBottom:14}}>
+      <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <Fld label="Songname *"><Inp value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="Songname..."/></Fld>
+          <Fld label="Künstler / Band *"><Inp value={form.artist} onChange={e=>setForm(p=>({...p,artist:e.target.value}))} placeholder="Künstlername..."/></Fld>
+        </div>
+        <Fld label="Genre"><Sel value={form.genre} onChange={e=>setForm(p=>({...p,genre:e.target.value}))} options={[{value:'',label:'Genre auswählen...'},...GENRES]}/></Fld>
+        <Fld label="YouTube-Link"><Inp value={form.youtubeLink} onChange={e=>setForm(p=>({...p,youtubeLink:e.target.value}))} placeholder="https://youtube.com/..."/></Fld>
+        <Fld label="Spotify-Link"><Inp value={form.spotifyLink} onChange={e=>setForm(p=>({...p,spotifyLink:e.target.value}))} placeholder="https://open.spotify.com/..."/></Fld>
+        <Btn onClick={submit} disabled={saving||!form.title||!form.artist} style={{background:'linear-gradient(135deg,var(--purple),#5B21B6)',color:'#fff',border:'none'}}>{saving?'Wird gespeichert...':'Vorschlag einreichen'}</Btn>
+      </div>
+    </Card>}
+    {!songs.length&&<Empty icon="💡" title="Noch keine Vorschläge" sub="Sei der Erste, der einen Song für die Band vorschlägt!"/>}
+    {songs.map(song=>{const voted=song.votes?.includes(user.uid);const vc=song.votes?.length||0;
+      return <Card key={song.id} style={{marginBottom:10}}>
+        <div style={{display:'flex',gap:12,alignItems:'flex-start'}}>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:700,fontSize:14}}>{song.title}</div>
+            <div style={{fontSize:11,color:'var(--t2)',marginTop:2}}>{song.artist}{song.genre&&` · ${song.genre}`}</div>
+            <div style={{fontSize:10,color:'var(--t3)',marginTop:3}}>Vorgeschlagen von {song.suggestedByName}</div>
+            <div style={{display:'flex',gap:5,marginTop:8,flexWrap:'wrap'}}>
+              {song.youtubeLink&&<a href={song.youtubeLink} target="_blank" rel="noopener noreferrer" style={{fontSize:10,padding:'3px 8px',borderRadius:'var(--r-pill)',background:'rgba(239,68,68,.15)',color:'var(--red)',textDecoration:'none'}}>▶ YouTube</a>}
+              {song.spotifyLink&&<a href={song.spotifyLink} target="_blank" rel="noopener noreferrer" style={{fontSize:10,padding:'3px 8px',borderRadius:'var(--r-pill)',background:'rgba(16,185,129,.15)',color:'var(--green)',textDecoration:'none'}}>♫ Spotify</a>}
+            </div>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'flex-end',flexShrink:0}}>
+            <button onClick={()=>vote(song)} style={{display:'flex',alignItems:'center',gap:5,padding:'7px 12px',borderRadius:'var(--r-sm)',border:`1px solid ${voted?'var(--gold)':'var(--border2)'}`,background:voted?'rgba(245,158,11,.15)':'transparent',color:voted?'var(--gold)':'var(--t2)',cursor:'pointer',fontWeight:700,fontSize:13}}>🔥 {vc}</button>
+            <button onClick={()=>moveToPractice(song)} disabled={moving===song.id} style={{padding:'7px 10px',borderRadius:'var(--r-sm)',border:'1px solid var(--green)',background:'rgba(16,185,129,.1)',color:'var(--green)',cursor:'pointer',fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>{moving===song.id?'...':'→ Direkt üben'}</button>
+          </div>
+        </div>
+      </Card>;})}
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════
+//  THEME CUSTOMIZER
+// ═══════════════════════════════════════════════════════
+function ThemeCustomizer({design,onUpdate}){
+  const{theme,font,radius}=design;
+  const RADIUS_LABELS=['Eckig','Leicht','Normal','Rund','Sehr rund'];
+  const rLabel=RADIUS_LABELS[Math.round(radius/5)]||'Normal';
+  return <div>
+    <div style={{fontSize:11,fontWeight:700,color:'var(--t2)',letterSpacing:.5,textTransform:'uppercase',marginBottom:10}}>Farbschema</div>
+    <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:18}}>
+      {Object.entries(THEMES).map(([name,t])=><button key={name} onClick={()=>onUpdate({theme:name})} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:'var(--r-sm)',border:`1px solid ${theme===name?t.purple:'var(--border)'}`,background:theme===name?t.surf:'var(--surf2)',cursor:'pointer',textAlign:'left',outline:'none'}}>
+        <div style={{display:'flex',gap:4}}>
+          {[t.purple,t.gold,t.green,t.pink].map((c,i)=><div key={i} style={{width:10,height:10,borderRadius:'50%',background:c}}/>)}
+        </div>
+        <span style={{fontSize:13,fontWeight:600,color:theme===name?t.text:'var(--t2)'}}>{name}</span>
+        {theme===name&&<span style={{marginLeft:'auto',fontSize:10,color:t.purple,fontWeight:700}}>✓ Aktiv</span>}
+      </button>)}
+    </div>
+
+    <div style={{fontSize:11,fontWeight:700,color:'var(--t2)',letterSpacing:.5,textTransform:'uppercase',marginBottom:8}}>Ecken — {rLabel}</div>
+    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:18}}>
+      <span style={{fontSize:10,color:'var(--t3)',flexShrink:0}}>Eckig</span>
+      <input type="range" min="0" max="20" value={radius} onChange={e=>onUpdate({radius:+e.target.value})} style={{flex:1,accentColor:'var(--purple)'}}/>
+      <span style={{fontSize:10,color:'var(--t3)',flexShrink:0}}>Rund</span>
+      <div style={{width:30,height:30,border:'2px solid var(--purple)',borderRadius:`${radius}px`,flexShrink:0}}/>
+    </div>
+
+    <div style={{fontSize:11,fontWeight:700,color:'var(--t2)',letterSpacing:.5,textTransform:'uppercase',marginBottom:8}}>Schriftart</div>
+    <div style={{display:'flex',flexDirection:'column',gap:6}}>
+      {Object.entries(FONTS).map(([name,f])=><button key={name} onClick={()=>onUpdate({font:name})} style={{padding:'9px 14px',borderRadius:'var(--r-sm)',border:`1px solid ${font===name?'var(--purple)':'var(--border)'}`,background:font===name?'rgba(124,58,237,.1)':'var(--surf2)',color:font===name?'var(--text)':'var(--t2)',fontFamily:f,fontSize:14,fontWeight:600,cursor:'pointer',textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span>{name} — <span style={{fontWeight:400,fontSize:12}}>BandSync Probe</span></span>
+        {font===name&&<span style={{fontSize:10,color:'var(--purple)',fontWeight:700}}>✓</span>}
+      </button>)}
+    </div>
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════
+//  PROFILE PAGE
+// ═══════════════════════════════════════════════════════
+function ProfilePage({user,profile,setProfile,design,onDesignUpdate}){
+  const[tab,setTab]=useState('info');
+  const[edit,setEdit]=useState(false);
+  const[form,setForm]=useState(null);
+  const[saving,setSaving]=useState(false);
+  const[addSong,setAS]=useState({title:'',artist:'',roles:[]});
+  const[addFav,setAF]=useState({title:'',artist:''});
+  const[skillIn,setSI]=useState('');
+  useEffect(()=>{if(profile)setForm({...profile});},[profile]);
+  const save=async()=>{setSaving(true);await db.collection('users').doc(user.uid).update({displayName:form.displayName,role:form.role,bio:form.bio,avatar:form.avatar,skills:form.skills||[]});setProfile(p=>({...p,...form}));setEdit(false);setSaving(false);};
+  const addPlayable=async()=>{if(!addSong.title||!addSong.artist)return;const l=[...(profile.playableSongs||[]),{id:uid(),...addSong}];await db.collection('users').doc(user.uid).update({playableSongs:l});setProfile(p=>({...p,playableSongs:l}));setAS({title:'',artist:'',roles:[]});};
+  const rmPlayable=async id=>{const l=(profile.playableSongs||[]).filter(s=>s.id!==id);await db.collection('users').doc(user.uid).update({playableSongs:l});setProfile(p=>({...p,playableSongs:l}));};
+  const addFavorite=async()=>{if(!addFav.title||!addFav.artist)return;const l=[...(profile.favoriteSongs||[]),{id:uid(),...addFav}];await db.collection('users').doc(user.uid).update({favoriteSongs:l});setProfile(p=>({...p,favoriteSongs:l}));setAF({title:'',artist:''});};
+  const rmFavorite=async id=>{const l=(profile.favoriteSongs||[]).filter(s=>s.id!==id);await db.collection('users').doc(user.uid).update({favoriteSongs:l});setProfile(p=>({...p,favoriteSongs:l}));};
+  const addSkill=()=>{if(!skillIn.trim())return;setForm(p=>({...p,skills:[...(p.skills||[]),skillIn.trim()]}));setSI('');};
+  const rmSkill=i=>setForm(p=>({...p,skills:p.skills.filter((_,j)=>j!==i)}));
+  const toggleSR=r=>setAS(p=>({...p,roles:p.roles.includes(r)?p.roles.filter(x=>x!==r):[...p.roles,r]}));
+  if(!profile||!form)return <div style={{display:'flex',justifyContent:'center',padding:40}}><div className="spin"/></div>;
+  const PTABS=[{key:'info',label:'Profil'},{key:'music',label:'Musik'},{key:'design',label:'🎨 Design'}];
+  return <div style={{padding:'16px 16px 90px'}}>
+    <div style={{display:'flex',gap:5,marginBottom:16,overflowX:'auto',paddingBottom:3}}>
+      {PTABS.map(t=><PillBtn key={t.key} active={tab===t.key} onClick={()=>setTab(t.key)}>{t.label}</PillBtn>)}
+    </div>
+    {tab==='info'&&<>
+      <Card glow style={{marginBottom:14}}>
+        {edit?<>
+          <div style={{fontSize:10,fontWeight:700,color:'var(--purple)',marginBottom:8}}>AVATAR AUSWÄHLEN</div>
+          <div style={{display:'flex',gap:5,flexWrap:'wrap',marginBottom:12}}>{AVATARS.map(e=><button key={e} onClick={()=>setForm(p=>({...p,avatar:e}))} style={{fontSize:22,padding:4,borderRadius:'var(--r-sm)',border:`2px solid ${form.avatar===e?'var(--purple)':'transparent'}`,background:'transparent',cursor:'pointer'}}>{e}</button>)}</div>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            <Fld label="Name"><Inp value={form.displayName} onChange={e=>setForm(p=>({...p,displayName:e.target.value}))}/></Fld>
+            <Fld label="Rolle in der Band"><Sel value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))} options={BAND_ROLES}/></Fld>
+            <Fld label="Über mich"><Txta value={form.bio||''} onChange={e=>setForm(p=>({...p,bio:e.target.value}))} placeholder="Schreib, was du magst — Stil, Einflüsse, Träume..." rows={3}/></Fld>
+            <Fld label={`Fähigkeiten (${form.skills?.length||0})`}>
+              <div style={{display:'flex',gap:4,flexWrap:'wrap',marginBottom:6}}>
+                {(form.skills||[]).map((s,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:4,padding:'3px 8px',borderRadius:'var(--r-pill)',background:'rgba(124,58,237,.15)',border:'1px solid rgba(124,58,237,.3)'}}>
+                  <span style={{fontSize:11,color:'var(--purple)'}}>{s}</span>
+                  <button onClick={()=>rmSkill(i)} style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:13,lineHeight:1}}>×</button>
+                </div>)}
+              </div>
+              <div style={{display:'flex',gap:6}}><Inp value={skillIn} onChange={e=>setSI(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addSkill()} placeholder="Fähigkeit hinzufügen..." style={{fontSize:12}}/><Btn onClick={addSkill} size="sm">+</Btn></div>
+            </Fld>
+          </div>
+          <div style={{display:'flex',gap:8,marginTop:14,justifyContent:'flex-end'}}>
+            <Btn onClick={()=>{setEdit(false);setForm({...profile});}} style={{color:'var(--t2)'}}>Abbrechen</Btn>
+            <Btn onClick={save} disabled={saving} style={{background:'linear-gradient(135deg,var(--purple),#5B21B6)',color:'#fff',border:'none'}}>{saving?'Speichern...':'Änderungen speichern'}</Btn>
+          </div>
+        </>:<>
+          <div style={{display:'flex',gap:14,alignItems:'center'}}>
+            <Av emoji={profile.avatar} size={58} color={(ROLE_COLORS[profile.role]||'#888')+'22'}/>
+            <div style={{flex:1}}><div style={{fontSize:20,fontWeight:800}}>{profile.displayName}</div><div style={{fontSize:12,color:ROLE_COLORS[profile.role]||'var(--t2)',marginTop:3,fontWeight:600}}>{profile.role}</div></div>
+            <Btn onClick={()=>setEdit(true)} size="sm">✏️ Bearbeiten</Btn>
+          </div>
+          {profile.bio&&<div style={{marginTop:12,fontSize:13,color:'var(--t2)',lineHeight:1.6,padding:'10px 12px',background:'var(--surf2)',borderRadius:'var(--r-sm)'}}>{profile.bio}</div>}
+          {profile.skills?.length>0&&<div style={{display:'flex',gap:4,flexWrap:'wrap',marginTop:10}}>{profile.skills.map((s,i)=><Badge key={i} label={s} color='var(--purple)' bg='rgba(124,58,237,.1)'/>)}</div>}
+        </>}
+      </Card>
+      <button onClick={()=>auth.signOut()} style={{width:'100%',padding:'12px',borderRadius:'var(--r)',border:'1px solid var(--border2)',background:'transparent',color:'var(--t2)',fontSize:13,cursor:'pointer'}}>Abmelden</button>
+    </>}
+
+    {tab==='music'&&<>
+      <div style={{fontSize:11,fontWeight:700,color:'var(--t2)',letterSpacing:.5,marginBottom:10,textTransform:'uppercase'}}>Spielbare Songs</div>
+      {(profile.playableSongs||[]).map(s=><Card key={s.id} style={{marginBottom:7}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{flex:1}}><div style={{fontWeight:700,fontSize:13}}>{s.title}</div><div style={{fontSize:11,color:'var(--t2)'}}>{s.artist}</div>
+            {s.roles?.length>0&&<div style={{display:'flex',gap:3,marginTop:4,flexWrap:'wrap'}}>{s.roles.map((r,i)=><Badge key={i} label={r} color='var(--cyan)' bg='rgba(6,182,212,.1)'/>)}</div>}
+          </div>
+          <button onClick={()=>rmPlayable(s.id)} style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:18}}>×</button>
+        </div>
+      </Card>)}
+      <Card style={{marginBottom:20}}>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+            <Inp value={addSong.title} onChange={e=>setAS(p=>({...p,title:e.target.value}))} placeholder="Songname..."/>
+            <Inp value={addSong.artist} onChange={e=>setAS(p=>({...p,artist:e.target.value}))} placeholder="Künstler..."/>
+          </div>
+          <div style={{fontSize:10,color:'var(--t2)',fontWeight:700,letterSpacing:.5}}>MEINE ROLLE IN DIESEM SONG</div>
+          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>{SONG_ROLES.map(r=><button key={r} onClick={()=>toggleSR(r)} style={{padding:'4px 8px',borderRadius:'var(--r-sm)',border:`1px solid ${addSong.roles.includes(r)?'var(--purple)':'var(--border)'}`,background:addSong.roles.includes(r)?'rgba(124,58,237,.15)':'transparent',color:addSong.roles.includes(r)?'var(--purple)':'var(--t3)',fontSize:11,cursor:'pointer'}}>{r}</button>)}</div>
+          <Btn onClick={addPlayable} size="sm" style={{alignSelf:'flex-end'}}>+ Song hinzufügen</Btn>
+        </div>
+      </Card>
+      <div style={{fontSize:11,fontWeight:700,color:'var(--t2)',letterSpacing:.5,marginBottom:10,textTransform:'uppercase'}}>Lieblingslieder</div>
+      {(profile.favoriteSongs||[]).map(s=><Card key={s.id} style={{marginBottom:6,padding:'10px 14px',display:'flex',alignItems:'center',gap:10}}>
+        <span style={{fontSize:16}}>♥️</span>
+        <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13}}>{s.title}</div><div style={{fontSize:11,color:'var(--t2)'}}>{s.artist}</div></div>
+        <button onClick={()=>rmFavorite(s.id)} style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:18}}>×</button>
+      </Card>)}
+      <Card>
+        <div style={{display:'flex',gap:7}}>
+          <Inp value={addFav.title} onChange={e=>setAF(p=>({...p,title:e.target.value}))} placeholder="Lieblingssongtitel..."/>
+          <Inp value={addFav.artist} onChange={e=>setAF(p=>({...p,artist:e.target.value}))} placeholder="Künstler..."/>
+          <Btn onClick={addFavorite} size="sm" style={{flexShrink:0}}>+</Btn>
+        </div>
+      </Card>
+    </>}
+
+    {tab==='design'&&<ThemeCustomizer design={design} onUpdate={onDesignUpdate}/>}
+  </div>;
+}
+
+// ═══════════════════════════════════════════════════════
+//  MAIN APP
+// ═══════════════════════════════════════════════════════
+function App(){
+  const[authState,setAuthState]=useState('checking');
+  const[user,setUser]=useState(null);
+  const[profile,setProfile]=useState(null);
+  const[tab,setTab]=useState('dashboard');
+  const[design,setDesign]=useState(()=>loadDesign());
+
+  useEffect(()=>{ applyDesign(design); },[design]);
+  const handleDesignUpdate=useCallback((patch)=>{
+    setDesign(prev=>{const next={...prev,...patch};localStorage.setItem(THEME_LS,JSON.stringify(next));applyDesign(next);return next;});
+  },[]);
+
+  useEffect(()=>{
+    if(!hasConfig()){setAuthState('no-config');return;}
+    if(!initFB()){setAuthState('no-config');return;}
+    const unsub=auth.onAuthStateChanged(async u=>{
+      if(u){setUser(u);const d=await db.collection('users').doc(u.uid).get();if(d.exists)setProfile({id:d.id,...d.data()});setAuthState('signed-in');}
+      else{setAuthState('signed-out');}
+    });
+    return unsub;
+  },[]);
+
+  useEffect(()=>{
+    if(!user||!db)return;
+    const u=db.collection('users').doc(user.uid).onSnapshot(d=>{if(d.exists)setProfile({id:d.id,...d.data()});});
+    return u;
+  },[user]);
+
+  if(authState==='checking')return <div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:10,color:'var(--t2)'}}><div className="spin"/></div>;
+  if(authState==='no-config')return <div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center',padding:24,flexDirection:'column',gap:14,textAlign:'center'}}>
+    <div style={{fontSize:36}}>⚙️</div>
+    <div style={{fontSize:16,fontWeight:700}}>Firebase-Konfiguration fehlt</div>
+    <div style={{fontSize:13,color:'var(--t2)',maxWidth:300,lineHeight:1.6}}>Öffne die HTML-Datei und füge deine Firebase-Konfiguration in den Bereich <code style={{color:'var(--purple)',background:'var(--surf)',padding:'1px 5px',borderRadius:4}}>FIREBASE_CONFIG</code> ein.</div>
+  </div>;
+  if(authState==='signed-out')return <AuthScreen/>;
+  if(!profile)return <div style={{display:'flex',height:'100vh',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:10,color:'var(--t2)'}}><div className="spin"/><div style={{fontSize:12}}>Profil wird geladen...</div></div>;
+
+  return <div style={{height:'100vh',display:'flex',flexDirection:'column'}}>
+    <div style={{background:'var(--surf)',borderBottom:'1px solid var(--border)',padding:'11px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+      <div style={{display:'flex',alignItems:'center',gap:10}}>
+        <span style={{fontSize:20}}>🎸</span>
+        <div>
+          <div style={{fontSize:15,fontWeight:800,letterSpacing:-.5,background:'linear-gradient(135deg,var(--purple),var(--pink))',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>BandSync</div>
+          <div style={{fontSize:9,color:'var(--t3)'}}>Interne Plattform</div>
+        </div>
+      </div>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        <Av emoji={profile.avatar} size={28} color={(ROLE_COLORS[profile.role]||'#888')+'33'}/>
+        <div><div style={{fontSize:11,fontWeight:700}}>{profile.displayName}</div><div style={{fontSize:9,color:ROLE_COLORS[profile.role]||'var(--t2)'}}>{profile.role}</div></div>
+      </div>
+    </div>
+    <div style={{flex:1,overflowY:'auto'}}>
+      {tab==='dashboard'&&<DashboardPage user={user} profile={profile}/>}
+      {tab==='schedule' &&<SchedulePage  user={user} profile={profile}/>}
+      {tab==='songs'    &&<SongsPage     user={user} profile={profile}/>}
+      {tab==='suggest'  &&<SuggestPage   user={user} profile={profile}/>}
+      {tab==='profile'  &&<ProfilePage   user={user} profile={profile} setProfile={setProfile} design={design} onDesignUpdate={handleDesignUpdate}/>}
+    </div>
+    <BottomNav tab={tab} setTab={setTab}/>
+  </div>;
+}
+
+applyDesign(loadDesign());
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
