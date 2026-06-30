@@ -112,6 +112,7 @@ const slotKey = (d,h) => `${d}_${h}`;
 const hlbl    = h => `${String(h).padStart(2,'0')}:00`;
 const dfmt    = d => new Date(d).toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'});
 const hasConfig = () => FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('PASTE_');
+const extractYTId = url => { const m=(url||'').match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/); return m?m[1]:null; };
 
 const getMondayOf = (offset=0) => {
   const now=new Date(), day=now.getDay()||7, m=new Date(now);
@@ -612,6 +613,7 @@ function SongsPage({user,profile,allSongs,members}){
   const[nf,setNF]=useState({title:'',artist:'',genre:'',status:'practicing',youtubeLink:'',spotifyLink:''});
   const[editSongId,setEditSongId]=useState(null);
   const[editSF,setEditSF]=useState({});
+  const[playingId,setPlayingId]=useState(null);
   const[editNotes,setEditNotes]=useState({});
   const[addRole,setAddRole]=useState({});
   const[groupByArtist,setGroupByArtist]=useState(false);
@@ -632,7 +634,7 @@ function SongsPage({user,profile,allSongs,members}){
   const artistGroups=useMemo(()=>{const g={};filtered.forEach(s=>{if(!g[s.artist])g[s.artist]=[];g[s.artist].push(s);});return g;},[filtered]);
 
   const renderSong=(song)=>{
-    const isOpen=exp===song.id,sm=STATUS_MAP[song.status],mr=(song.roleAssignments||[]).find(r=>r.userId===user.uid),isEdit=editSongId===song.id;
+    const isOpen=exp===song.id,sm=STATUS_MAP[song.status],mr=(song.roleAssignments||[]).find(r=>r.userId===user.uid),isEdit=editSongId===song.id,ytId=extractYTId(song.youtubeLink);
     return <div key={song.id} style={{marginBottom:8}}>
       <Card style={{borderColor:isOpen?'var(--border2)':undefined}}>
         <div onClick={()=>setExp(isOpen?null:song.id)} style={{display:'flex',gap:9,alignItems:'center',cursor:'pointer'}}>
@@ -644,8 +646,13 @@ function SongsPage({user,profile,allSongs,members}){
             <div style={{fontSize:11,color:'var(--t2)'}}>{song.artist}{song.genre&&` · ${song.genre}`}</div>
             {mr&&<div style={{fontSize:10,color:'var(--cyan)',marginTop:1}}>Meine Rolle: {mr.songRole}</div>}
           </div>
+          {ytId&&<button onClick={e=>{e.stopPropagation();setPlayingId(playingId===song.id?null:song.id);}} style={{background:playingId===song.id?'rgba(239,68,68,.25)':'rgba(239,68,68,.12)',border:'1px solid rgba(239,68,68,.4)',borderRadius:'var(--r-pill)',color:'var(--red)',padding:'4px 9px',fontSize:11,fontWeight:700,cursor:'pointer',flexShrink:0,display:'flex',alignItems:'center',gap:3}}>▶</button>}
           <span style={{fontSize:10,color:'var(--t3)',flexShrink:0}}>{isOpen?'▲':'▼'}</span>
         </div>
+        {ytId&&playingId===song.id&&<div style={{marginTop:8,borderRadius:'var(--r-sm)',overflow:'hidden',background:'#000',position:'relative'}}>
+          <button onClick={()=>setPlayingId(null)} style={{position:'absolute',top:6,right:6,zIndex:10,background:'rgba(0,0,0,.7)',border:'none',color:'#fff',borderRadius:'50%',width:24,height:24,cursor:'pointer',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>×</button>
+          <iframe width="100%" height="210" src={`https://www.youtube.com/embed/${ytId}?autoplay=1`} title={song.title} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{display:'block'}}/>
+        </div>}
         {isOpen&&<div style={{borderTop:'1px solid var(--border)',marginTop:10,paddingTop:10,display:'flex',flexDirection:'column',gap:12}}>
           <div>
             <div style={{fontSize:10,fontWeight:700,color:'var(--t2)',letterSpacing:.5,marginBottom:6}}>STATUS</div>
@@ -754,6 +761,7 @@ function SuggestPage({user,profile,allSongs}){
   const[saving,setSaving]=useState(false);
   const[moving,setMoving]=useState(null);
   const[groupBy,setGroupBy]=useState(false);
+  const[playingId,setPlayingId]=useState(null);
 
   const suggested=allSongs.filter(s=>s.status==='suggested').sort((a,b)=>(b.votes?.length||0)-(a.votes?.length||0));
 
@@ -768,7 +776,7 @@ function SuggestPage({user,profile,allSongs}){
 
   const artistGroups=useMemo(()=>{const g={};suggested.forEach(s=>{if(!g[s.artist])g[s.artist]=[];g[s.artist].push(s);});return g;},[suggested]);
 
-  const renderSong=song=>{const voted=song.votes?.includes(user.uid),vc=song.votes?.length||0;
+  const renderSong=song=>{const voted=song.votes?.includes(user.uid),vc=song.votes?.length||0,ytId2=extractYTId(song.youtubeLink);
     return <Card key={song.id} style={{marginBottom:9}}>
       <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
         <div style={{flex:1}}>
@@ -776,7 +784,7 @@ function SuggestPage({user,profile,allSongs}){
           <div style={{fontSize:11,color:'var(--t2)',marginTop:2}}>{song.artist}{song.genre&&` · ${song.genre}`}</div>
           <div style={{fontSize:10,color:'var(--t3)',marginTop:2}}>Vorgeschlagen von {song.suggestedByName}</div>
           <div style={{display:'flex',gap:5,marginTop:7,flexWrap:'wrap'}}>
-            {song.youtubeLink&&<a href={song.youtubeLink} target="_blank" rel="noopener noreferrer" style={{fontSize:10,padding:'2px 8px',borderRadius:'var(--r-pill)',background:'rgba(239,68,68,.15)',color:'var(--red)',textDecoration:'none'}}>▶ YouTube</a>}
+            {ytId2&&<button onClick={()=>setPlayingId(playingId===song.id?null:song.id)} style={{fontSize:10,padding:'3px 9px',borderRadius:'var(--r-pill)',background:playingId===song.id?'rgba(239,68,68,.3)':'rgba(239,68,68,.15)',color:'var(--red)',border:'1px solid rgba(239,68,68,.3)',cursor:'pointer',fontWeight:700}}>▶ {playingId===song.id?'Schließen':'YouTube'}</button>}
             {song.spotifyLink&&<a href={song.spotifyLink} target="_blank" rel="noopener noreferrer" style={{fontSize:10,padding:'2px 8px',borderRadius:'var(--r-pill)',background:'rgba(16,185,129,.15)',color:'var(--green)',textDecoration:'none'}}>♫ Spotify</a>}
           </div>
         </div>
@@ -785,6 +793,10 @@ function SuggestPage({user,profile,allSongs}){
           <button onClick={()=>move(song)} disabled={moving===song.id} style={{padding:'6px 9px',borderRadius:'var(--r-sm)',border:'1px solid var(--green)',background:'rgba(16,185,129,.1)',color:'var(--green)',cursor:'pointer',fontWeight:700,fontSize:11,whiteSpace:'nowrap'}}>{moving===song.id?'...':'→ Üben'}</button>
         </div>
       </div>
+      {ytId2&&playingId===song.id&&<div style={{marginTop:10,borderRadius:'var(--r-sm)',overflow:'hidden',background:'#000',position:'relative'}}>
+        <button onClick={()=>setPlayingId(null)} style={{position:'absolute',top:6,right:6,zIndex:10,background:'rgba(0,0,0,.7)',border:'none',color:'#fff',borderRadius:'50%',width:22,height:22,cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+        <iframe width="100%" height="200" src={`https://www.youtube.com/embed/${ytId2}?autoplay=1`} title={song.title} frameBorder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen style={{display:'block'}}/>
+      </div>}
     </Card>;};
 
   return <div style={{padding:'16px 16px 90px'}}>
