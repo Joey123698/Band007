@@ -57,10 +57,10 @@ function SchedulePage({user,profile,allSessions,allSongs,members}){
   // Week label
   const weekLabel=weekOff===0?'Diese Woche':weekOff===-1?'Letzte Woche':weekOff===1?'Nächste Woche':(weekOff<0?`Vor ${-weekOff} Wochen`:`In ${weekOff} Wochen`);
 
-  return <div style={{padding:'16px 16px 90px'}}>
-    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-      <div style={{fontSize:17,fontWeight:800}}>📅 Probeplan</div>
-      <div style={{display:'flex',gap:5}}>
+  return <div className="px-4 pt-4 pb-[90px]">
+    <div className="flex justify-between items-center mb-3">
+      <div className="text-[17px] font-extrabold">📅 Probeplan</div>
+      <div className="flex gap-[5px]">
         <PillBtn active={view==='avail'} onClick={()=>setView('avail')}>Verfügbarkeit</PillBtn>
         <PillBtn active={view==='proben'} onClick={()=>setView('proben')}>Proben</PillBtn>
         <PillBtn active={view==='create'} onClick={()=>setView('create')}>+ Neu</PillBtn>
@@ -69,36 +69,37 @@ function SchedulePage({user,profile,allSessions,allSongs,members}){
 
     {view==='avail'&&<>
       {bestLabel&&<Card glow style={{marginBottom:12,background:'rgba(124,58,237,.07)'}}>
-        <div style={{fontSize:10,fontWeight:700,color:'var(--purple)',letterSpacing:.5,marginBottom:2}}>⚡ OPTIMALE PROBEZEIT</div>
-        <div style={{fontSize:14,fontWeight:800}}>{bestLabel}</div>
+        <div className="text-[10px] font-bold text-brand-purple tracking-[.5px] mb-0.5">⚡ OPTIMALE PROBEZEIT</div>
+        <div className="text-[14px] font-extrabold">{bestLabel}</div>
       </Card>}
-      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
-        <button onClick={()=>setWeekOff(w=>w-1)} style={{padding:'6px 12px',borderRadius:'var(--r-sm)',border:'1px solid var(--border2)',background:'var(--surf)',color:'var(--text)',cursor:'pointer'}}>‹</button>
-        <div style={{flex:1,textAlign:'center'}}>
-          <div style={{fontSize:12,fontWeight:700}}>{weekLabel}</div>
-          <div style={{fontSize:10,color:'var(--t3)'}}>{weekDays[0].toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})} – {weekDays[6].toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})}</div>
+      <div className="flex items-center gap-2 mb-2.5">
+        <button onClick={()=>setWeekOff(w=>w-1)} className="px-3 py-1.5 rounded-theme-sm border border-line-2 bg-surf text-ink cursor-pointer">‹</button>
+        <div className="flex-1 text-center">
+          <div className="text-[12px] font-bold">{weekLabel}</div>
+          <div className="text-[10px] text-ink-3">{weekDays[0].toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit'})} – {weekDays[6].toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})}</div>
         </div>
-        <button onClick={()=>setWeekOff(w=>w+1)} style={{padding:'6px 12px',borderRadius:'var(--r-sm)',border:'1px solid var(--border2)',background:'var(--surf)',color:'var(--text)',cursor:'pointer'}}>›</button>
+        <button onClick={()=>setWeekOff(w=>w+1)} className="px-3 py-1.5 rounded-theme-sm border border-line-2 bg-surf text-ink cursor-pointer">›</button>
       </div>
-      <div style={{overflowX:'auto',userSelect:'none',marginBottom:16}}>
-        <div style={{minWidth:480}}>
-          <div style={{display:'grid',gridTemplateColumns:`44px repeat(7,1fr)`,gap:2,marginBottom:3}}>
+      <div className="overflow-x-auto select-none mb-4">
+        <div className="min-w-[480px]">
+          <div className="grid grid-cols-[44px_repeat(7,1fr)] gap-0.5 mb-[3px]">
             <div/>
             {weekDays.map((d,i)=>{
               const isT=toKey(d)===nowKey();
-              return <div key={i} style={{textAlign:'center',padding:'2px 0'}}>
-                <div style={{fontSize:9,fontWeight:700,color:isT?'var(--purple)':'var(--t2)'}}>{DAYS_DE[i]}</div>
-                <div style={{fontSize:10,fontWeight:isT?800:400,color:isT?'var(--purple)':'var(--t3)'}}>{d.getDate()}.{String(d.getMonth()+1).padStart(2,'0')}</div>
+              return <div key={i} className="text-center py-0.5">
+                <div className="text-[9px] font-bold" style={{color:isT?'var(--purple)':'var(--t2)'}}>{DAYS_DE[i]}</div>
+                <div className="text-[10px]" style={{fontWeight:isT?800:400,color:isT?'var(--purple)':'var(--t3)'}}>{d.getDate()}.{String(d.getMonth()+1).padStart(2,'0')}</div>
               </div>;
             })}
           </div>
-          {HOURS.map(h=><div key={h} style={{display:'grid',gridTemplateColumns:`44px repeat(7,1fr)`,gap:2,marginBottom:2}}>
-            <div style={{fontSize:8,color:'var(--t3)',display:'flex',alignItems:'center',justifyContent:'flex-end',paddingRight:4}}>{hlbl(h)}</div>
+          {HOURS.map(h=><div key={h} className="grid grid-cols-[44px_repeat(7,1fr)] gap-0.5 mb-0.5">
+            <div className="text-[8px] text-ink-3 flex items-center justify-end pr-1">{hlbl(h)}</div>
             {weekDays.map((_,d)=>{
               const k=slotKey(d,h),mine=!!myAvail[k],cnt=counts[k]||0,int=cnt/maxCount;
               return <div key={d} onMouseDown={()=>handleMD(d,h)} onMouseEnter={()=>handleME(d,h)} onTouchStart={()=>handleMD(d,h)}
-                style={{height:24,borderRadius:'var(--r-sm)',border:`1px solid ${mine?'var(--green)':cnt>0?'rgba(124,58,237,.5)':'var(--border)'}`,background:mine?'rgba(16,185,129,.5)':cnt>0?`rgba(124,58,237,${int*.5})`:'transparent',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                {cnt>0&&<span style={{fontSize:8,fontWeight:700,color:mine?'#fff':'var(--purple)',opacity:.9}}>{cnt}</span>}
+                className="h-6 rounded-theme-sm border cursor-pointer flex items-center justify-center"
+                style={{borderColor:mine?'var(--green)':cnt>0?'rgba(124,58,237,.5)':'var(--border)',background:mine?'rgba(16,185,129,.5)':cnt>0?`rgba(124,58,237,${int*.5})`:'transparent'}}>
+                {cnt>0&&<span className="text-[8px] font-bold opacity-90" style={{color:mine?'#fff':'var(--purple)'}}>{cnt}</span>}
               </div>;
             })}
           </div>)}
@@ -107,34 +108,37 @@ function SchedulePage({user,profile,allSessions,allSongs,members}){
     </>}
 
     {view==='proben'&&<>
-      <div style={{fontSize:11,fontWeight:700,color:'var(--t2)',letterSpacing:.5,textTransform:'uppercase',marginBottom:10}}>Bevorstehende Proben</div>
+      <div className="text-[11px] font-bold text-ink-2 tracking-[.5px] uppercase mb-2.5">Bevorstehende Proben</div>
       {!upcoming5.length&&<Empty icon="📅" title="Keine Proben geplant" sub="Unter + Neu erstellen"/>}
       {upcoming5.map(s=><SessionCard key={s.id} session={s} user={user} profile={profile} members={members} practiceSongs={practiceSongs} editId={editId} setEditId={setEditId} showCommentsId={showCommentsId} setShowCommentsId={setShowCommentsId} onUpdate={updateSess} onDelete={deleteSess}/>)}
-      {past5.length>0&&<><div style={{fontSize:11,fontWeight:700,color:'var(--t2)',letterSpacing:.5,textTransform:'uppercase',margin:'16px 0 10px'}}>Vergangene Proben</div>
+      {past5.length>0&&<><div className="text-[11px] font-bold text-ink-2 tracking-[.5px] uppercase mt-4 mb-2.5">Vergangene Proben</div>
         {past5.map(s=><SessionCard key={s.id} session={s} user={user} profile={profile} members={members} practiceSongs={practiceSongs} editId={editId} setEditId={setEditId} showCommentsId={showCommentsId} setShowCommentsId={setShowCommentsId} onUpdate={updateSess} onDelete={deleteSess} past/>)}</>}
     </>}
 
     {view==='create'&&<Card>
-      <div style={{display:'flex',flexDirection:'column',gap:12}}>
+      <div className="flex flex-col gap-3">
         <Fld label="Probenname"><Inp value={sf.title} onChange={e=>setSF(f=>({...f,title:e.target.value}))} placeholder="z.B. Probe vor dem Auftritt..."/></Fld>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+        <div className="grid grid-cols-2 gap-2.5">
           <Fld label="Datum"><Inp type="date" value={sf.date} onChange={e=>setSF(f=>({...f,date:e.target.value}))}/></Fld>
           <Fld label="Uhrzeit"><Inp type="time" value={sf.time} onChange={e=>setSF(f=>({...f,time:e.target.value}))}/></Fld>
         </div>
         <Fld label="Ort">
           <Sel value={sf.location} onChange={e=>setSF(f=>({...f,location:e.target.value}))} options={[{value:'',label:'-- Ort auswählen --'},...locations.map(l=>({value:l.name,label:l.name})),{value:'Im Freien 🌿',label:'Im Freien 🌿 (Standard)'}]}/>
-          <div style={{display:'flex',gap:6,marginTop:6}}><Inp value={newLoc} onChange={e=>setNewLoc(e.target.value)} placeholder="Neuen Ort hinzufügen..." style={{fontSize:11}}/><Btn onClick={addLoc} size="sm">+</Btn></div>
+          <div className="flex gap-1.5 mt-1.5"><Inp value={newLoc} onChange={e=>setNewLoc(e.target.value)} placeholder="Neuen Ort hinzufügen..." style={{fontSize:11}}/><Btn onClick={addLoc} size="sm">+</Btn></div>
         </Fld>
         <Fld label="Verantwortlich"><Sel value={sf.leadId} onChange={e=>setSF(f=>({...f,leadId:e.target.value}))} options={[{value:'',label:'-- Später festlegen --'},...members.map(m=>({value:m.id,label:`${m.displayName} — ${m.role}`}))]}/></Fld>
         <Fld label={`Setliste (${sf.setlist.length} Songs)`}>
-          {practiceSongs.length===0?<div style={{fontSize:11,color:'var(--t3)',padding:'6px 0'}}>Noch keine Songs. Songs-Tab öffnen.</div>:practiceSongs.map(s=>{const sel=sf.setlist.find(x=>x.songId===s.id);return <div key={s.id} onClick={()=>toggleSL(s)} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 9px',borderRadius:'var(--r-sm)',border:`1px solid ${sel?'var(--purple)':'var(--border)'}`,background:sel?'rgba(124,58,237,.1)':'transparent',cursor:'pointer',marginBottom:4}}>
-            <div style={{width:13,height:13,borderRadius:3,background:sel?'var(--purple)':'transparent',border:`2px solid ${sel?'var(--purple)':'var(--border2)'}`,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,color:'#fff'}}>{sel?'✓':''}</div>
-            <span style={{fontSize:12,flex:1}}>{s.title} — <span style={{color:'var(--t2)'}}>{s.artist}</span></span>
+          {practiceSongs.length===0?<div className="text-[11px] text-ink-3 py-1.5">Noch keine Songs. Songs-Tab öffnen.</div>:practiceSongs.map(s=>{const sel=sf.setlist.find(x=>x.songId===s.id);return <div key={s.id} onClick={()=>toggleSL(s)}
+            className="flex items-center gap-2 px-[9px] py-[7px] rounded-theme-sm border cursor-pointer mb-1"
+            style={{borderColor:sel?'var(--purple)':'var(--border)',background:sel?'rgba(124,58,237,.1)':'transparent'}}>
+            <div className="w-[13px] h-[13px] rounded-[3px] border-2 shrink-0 flex items-center justify-center text-[8px] text-white"
+              style={{background:sel?'var(--purple)':'transparent',borderColor:sel?'var(--purple)':'var(--border2)'}}>{sel?'✓':''}</div>
+            <span className="text-[12px] flex-1">{s.title} — <span className="text-ink-2">{s.artist}</span></span>
             <Badge label={STATUS_MAP[s.status]?.label} color={STATUS_MAP[s.status]?.color} bg={STATUS_MAP[s.status]?.bg}/>
           </div>;})}
         </Fld>
         <Fld label="Notizen"><Txta value={sf.notes} onChange={e=>setSF(f=>({...f,notes:e.target.value}))} placeholder="Vorbereitung, Ausrüstung..." rows={2}/></Fld>
-        <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+        <div className="flex gap-2 justify-end">
           <Btn onClick={()=>setView('proben')} style={{color:'var(--t2)'}}>Abbrechen</Btn>
           <Btn onClick={createSess} disabled={!sf.date} style={{background:'linear-gradient(135deg,var(--purple),#5B21B6)',color:'#fff',border:'none'}}>Probe erstellen ✓</Btn>
         </div>
@@ -147,44 +151,44 @@ function SessionCard({session:s,user,profile,members,practiceSongs,editId,setEdi
   const[ef,setEF]=useState({title:s.title||'',date:s.date||'',time:s.time||'',location:s.location||'',leadId:s.leadId||'',notes:s.notes||''});
   const isEdit=editId===s.id, showC=showCommentsId===s.id;
   const att=s.attendance||{}, confirmed=Object.values(att).filter(v=>v.status==='confirmed').length;
-  return <div style={{marginBottom:10,opacity:past?.7:1}}>
+  return <div className="mb-2.5" style={{opacity:past?.7:1}}>
     <Card style={{borderColor:isEdit?'var(--border2)':undefined}}>
-      {isEdit?<div style={{display:'flex',flexDirection:'column',gap:10}}>
-        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:8}}>
+      {isEdit?<div className="flex flex-col gap-2.5">
+        <div className="grid grid-cols-[2fr_1fr] gap-2">
           <Fld label="Name"><Inp value={ef.title} onChange={e=>setEF(f=>({...f,title:e.target.value}))}/></Fld>
           <Fld label="Datum"><Inp type="date" value={ef.date} onChange={e=>setEF(f=>({...f,date:e.target.value}))}/></Fld>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+        <div className="grid grid-cols-2 gap-2">
           <Fld label="Uhrzeit"><Inp type="time" value={ef.time} onChange={e=>setEF(f=>({...f,time:e.target.value}))}/></Fld>
           <Fld label="Ort"><Inp value={ef.location} onChange={e=>setEF(f=>({...f,location:e.target.value}))}/></Fld>
         </div>
         <Fld label="Verantwortlich"><Sel value={ef.leadId} onChange={e=>setEF(f=>({...f,leadId:e.target.value}))} options={[{value:'',label:'-- Wählen --'},...members.map(m=>({value:m.id,label:m.displayName}))]}/></Fld>
         <Fld label="Notizen"><Txta value={ef.notes} onChange={e=>setEF(f=>({...f,notes:e.target.value}))} rows={2}/></Fld>
-        <div style={{display:'flex',gap:7,justifyContent:'flex-end'}}>
+        <div className="flex gap-[7px] justify-end">
           <Btn onClick={()=>setEditId(null)} size="sm">Abbrechen</Btn>
           <Btn onClick={()=>onUpdate(s.id,{...ef,leadName:members.find(m=>m.id===ef.leadId)?.displayName||''})} size="sm" style={{background:'var(--green)',color:'#fff',border:'none'}}>Speichern</Btn>
           <Btn onClick={()=>onDelete(s.id)} size="sm" style={{background:'rgba(239,68,68,.15)',color:'var(--red)',border:'1px solid rgba(239,68,68,.3)'}}>Löschen</Btn>
         </div>
       </div>:<>
-        <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
-          <div style={{flex:1}}>
-            <div style={{fontWeight:700,fontSize:13,marginBottom:3}}>{s.title||'Probe'}</div>
-            <div style={{fontSize:11,color:'var(--t2)'}}>📅 {dfmt(s.date)}{s.time&&` · ⏰ ${s.time}`}{s.location&&` · 📍 ${s.location}`}</div>
-            {s.leadName&&<div style={{fontSize:11,color:'var(--gold)',marginTop:2}}>⭐ {s.leadName}</div>}
-            {confirmed>0&&<div style={{fontSize:10,color:'var(--green)',marginTop:2}}>✓ {confirmed} Zusagen</div>}
+        <div className="flex gap-2.5 items-start">
+          <div className="flex-1">
+            <div className="font-bold text-[13px] mb-[3px]">{s.title||'Probe'}</div>
+            <div className="text-[11px] text-ink-2">📅 {dfmt(s.date)}{s.time&&` · ⏰ ${s.time}`}{s.location&&` · 📍 ${s.location}`}</div>
+            {s.leadName&&<div className="text-[11px] text-brand-gold mt-0.5">⭐ {s.leadName}</div>}
+            {confirmed>0&&<div className="text-[10px] text-brand-green mt-0.5">✓ {confirmed} Zusagen</div>}
           </div>
-          {!past&&<div style={{display:'flex',gap:5,flexShrink:0}}>
-            <button onClick={()=>setEditId(isEdit?null:s.id)} style={{background:'none',border:'none',color:'var(--t2)',cursor:'pointer',fontSize:15,padding:'2px 5px'}} title="Bearbeiten">✏️</button>
-            <button onClick={()=>setShowCommentsId(showC?null:s.id)} style={{background:'none',border:'none',color:showC?'var(--purple)':'var(--t2)',cursor:'pointer',fontSize:15,padding:'2px 5px'}} title="Kommentare">💬</button>
+          {!past&&<div className="flex gap-[5px] shrink-0">
+            <button onClick={()=>setEditId(isEdit?null:s.id)} className="bg-transparent border-none text-ink-2 cursor-pointer text-[15px] px-[5px] py-0.5" title="Bearbeiten">✏️</button>
+            <button onClick={()=>setShowCommentsId(showC?null:s.id)} className="bg-transparent border-none cursor-pointer text-[15px] px-[5px] py-0.5" style={{color:showC?'var(--purple)':'var(--t2)'}} title="Kommentare">💬</button>
           </div>}
         </div>
-        {s.setlist?.length>0&&<div style={{marginTop:8,paddingTop:8,borderTop:'1px solid var(--border)'}}>
-          <div style={{fontSize:10,color:'var(--t3)',marginBottom:4}}>Setliste ({s.setlist.length})</div>
-          <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+        {s.setlist?.length>0&&<div className="mt-2 pt-2 border-t border-line">
+          <div className="text-[10px] text-ink-3 mb-1">Setliste ({s.setlist.length})</div>
+          <div className="flex gap-1 flex-wrap">
             {s.setlist.map((sg,i)=><Badge key={i} label={sg.title} color='var(--t2)' bg='var(--surf3)'/>)}
           </div>
         </div>}
-        {showC&&<div style={{marginTop:10,paddingTop:10,borderTop:'1px solid var(--border)'}}>
+        {showC&&<div className="mt-2.5 pt-2.5 border-t border-line">
           <CommentsThread collection="sessionComments" docId={s.id} user={user} profile={profile} members={members}/>
         </div>}
       </>}

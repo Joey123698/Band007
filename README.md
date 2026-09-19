@@ -3,6 +3,9 @@
 Interne Band-Plattform (React + Firebase). Läuft als statische Seite auf GitHub Pages —
 **kein Build-Schritt**, JSX wird im Browser von Babel-Standalone übersetzt.
 
+> Ausführliche Beschreibung des Aufbaus und wo man was ändert:
+> **[ARCHITECTURE.md](ARCHITECTURE.md)** · Arbeitsregeln: **[CLAUDE.md](CLAUDE.md)**
+
 ## Projektstruktur
 
 ```
@@ -53,7 +56,10 @@ Eingebunden über das Play-CDN (`cdn.tailwindcss.com`), konfiguriert in
 `js/core/tailwind-config.js`. Zwei Dinge sind dort bewusst gesetzt:
 
 * `preflight: false` — der Reset aus `css/styles.css` bleibt maßgeblich.
-  **Folge:** `border` allein zeigt keinen Rahmen, es braucht `border border-solid`.
+  Damit Tailwinds `border` / `border-t` trotzdem funktionieren, setzt der
+  Universal-Selektor in `css/styles.css` `border-width:0;border-style:solid`
+  (genau die eine Preflight-Regel, die Tailwind zwingend braucht).
+  Die Border-*Farbe* bleibt bewusst ungesetzt, sonst faerbt sie jedes Element.
 * Die Farben zeigen auf die CSS-Variablen, damit der Theme-Wechsel im Profil
   auch für Tailwind-Klassen greift:
 
@@ -69,6 +75,14 @@ Eingebunden über das Play-CDN (`cdn.tailwindcss.com`), konfiguriert in
 
 Tailwinds eigene Paletten (`bg-purple-500`, …) funktionieren weiterhin.
 
-`js/components/ui.js` ist bereits auf Tailwind umgestellt; die übrigen Dateien
-nutzen noch Inline-Styles. Beides lässt sich mischen — ein `style={{…}}`
-überschreibt immer die Klassen.
+Alle Komponenten und Seiten nutzen Tailwind-Klassen. Werte, die zur Laufzeit
+aus Props oder State kommen (`color`, `background`, Gradients, berechnete
+Groessen), stehen weiterhin als Inline-`style` daneben — das ist Absicht:
+`style={{…}}` ueberschreibt immer die Klassen.
+
+Beim Schreiben neuer Klassen zwei Fallstricke beachten:
+
+* `text-xs` / `text-sm` setzen **auch eine line-height**. Wo nur die
+  Schriftgroesse gemeint ist: `text-[12px]`, `text-[14px]`.
+* Einseitige Rahmen (`border-t` + `border-line`) faerben alle vier Kanten —
+  sichtbar ist nur die Kante mit Breite, aber nicht ueberraschen lassen.

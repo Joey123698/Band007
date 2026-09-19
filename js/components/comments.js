@@ -21,18 +21,18 @@ function CommentsThread({collection,docId,user,profile,members}){
   };
   const del=async id=>db.collection(collection).doc(id).delete();
   return <div>
-    {comments.map(c=><div key={c.id} style={{display:'flex',gap:8,marginBottom:8,alignItems:'flex-start'}}>
+    {comments.map(c=><div key={c.id} className="flex gap-2 mb-2 items-start">
       <Av emoji={c.avatar} size={26}/>
-      <div style={{flex:1}}>
-        <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:3,flexWrap:'wrap'}}>
-          <span style={{fontSize:11,fontWeight:700}}>{c.userName}</span>
+      <div className="flex-1">
+        <div className="flex gap-1.5 items-center mb-[3px] flex-wrap">
+          <span className="text-[11px] font-bold">{c.userName}</span>
           <Badge label={c.userBandRole} color={ROLE_COLORS[c.userBandRole]} bg='var(--surf3)'/>
         </div>
-        <div style={{fontSize:12,color:'var(--t2)',lineHeight:1.5,padding:'6px 10px',background:'var(--bg)',borderRadius:'var(--r-sm)',border:'1px solid var(--border)'}}>{c.text}</div>
+        <div className="text-[12px] text-ink-2 leading-[1.5] px-2.5 py-1.5 bg-base rounded-theme-sm border border-line">{c.text}</div>
       </div>
-      {c.userId===user.uid&&<button onClick={()=>del(c.id)} style={{background:'none',border:'none',color:'var(--t3)',cursor:'pointer',fontSize:13,paddingTop:4}}>×</button>}
+      {c.userId===user.uid&&<button onClick={()=>del(c.id)} className="bg-transparent border-none text-ink-3 cursor-pointer text-[13px] pt-1">×</button>}
     </div>)}
-    <div style={{display:'flex',gap:7,marginTop:6}}>
+    <div className="flex gap-[7px] mt-1.5">
       <Inp value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!e.shiftKey&&(e.preventDefault(),send())} placeholder="Kommentar..." style={{flex:1,fontSize:12}}/>
       <Btn onClick={send} disabled={loading||!text.trim()} style={{background:'var(--purple)',color:'#fff',border:'none',padding:'0 14px',flexShrink:0}}>→</Btn>
     </div>
