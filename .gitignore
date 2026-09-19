@@ -1,0 +1,40 @@
+# ═══ Betriebssystem ═══
+.DS_Store
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ═══ Editoren / IDEs ═══
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ═══ Claude Code ═══
+# .claude/launch.json bleibt im Repo (startet den lokalen Test-Server),
+# nur persoenliche Einstellungen werden ignoriert.
+.claude/settings.local.json
+
+# ═══ Node (falls spaeter ein Build-Schritt dazukommt) ═══
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+build/
+
+# ═══ Secrets ═══
+# Die Firebase-Web-Config in js/core/firebase-config.js ist oeffentlich
+# und gehoert ins Repo. Serverseitige Schluessel dagegen nie:
+.env
+.env.*
+*serviceAccount*.json
+firebase-adminsdk*.json
+
+# ═══ Temporaere Dateien ═══
+*.log
+_preview*.html
+*.part
