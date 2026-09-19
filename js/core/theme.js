@@ -1,27 +1,69 @@
 // ════════════════════════════════════════════════════
-//  THEME SYSTEM
+//  THEME SYSTEM — Tonstudio
+//
+//  Alle Themes teilen dieselbe Grauleiter und dieselben
+//  Statusfarben; unterschiedlich ist nur der EINE Akzent.
+//  Das ist Absicht: so bleibt jede Variante dasselbe Design
+//  und wird nicht zu fuenf fremden Paletten.
 // ════════════════════════════════════════════════════
-const THEMES = {
-  'Dark Studio':  {bg:'#06060F',surf:'#0C0C1E',surf2:'#111128',surf3:'#16163A',border:'#1C1C40',border2:'#242455',purple:'#7C3AED',gold:'#F59E0B',green:'#10B981',red:'#EF4444',cyan:'#06B6D4',pink:'#EC4899',text:'#E2E2F5',t2:'#7070A8',t3:'#38386A'},
-  'Purple Night': {bg:'#080010',surf:'#0D0020',surf2:'#130030',surf3:'#190040',border:'#220058',border2:'#2E0070',purple:'#9333EA',gold:'#E879F9',green:'#10B981',red:'#EF4444',cyan:'#A855F7',pink:'#EC4899',text:'#F0E8FF',t2:'#9070C0',t3:'#4A3080'},
-  'Ocean':        {bg:'#020B14',surf:'#051525',surf2:'#072030',surf3:'#0A2B40',border:'#0D3A55',border2:'#104A6A',purple:'#0891B2',gold:'#22D3EE',green:'#34D399',red:'#F87171',cyan:'#38BDF8',pink:'#67E8F9',text:'#E0F7FF',t2:'#6BAACC',t3:'#2A6080'},
-  'Forest':       {bg:'#030C05',surf:'#061A0A',surf2:'#0A2410',surf3:'#0E3016',border:'#123C1C',border2:'#164824',purple:'#059669',gold:'#34D399',green:'#4ADE80',red:'#EF4444',cyan:'#10B981',pink:'#6EE7B7',text:'#E0FFE8',t2:'#60A870',t3:'#2A5A35'},
-  'Rot & Gold':   {bg:'#100808',surf:'#1C0F0F',surf2:'#241616',surf3:'#2C1E1E',border:'#3A2424',border2:'#4A2E2E',purple:'#DC2626',gold:'#F59E0B',green:'#10B981',red:'#EF4444',cyan:'#F97316',pink:'#FB7185',text:'#FFF0F0',t2:'#B08080',t3:'#6A4040'},
+
+// Warmes Anthrazit — Grundlage aller Varianten.
+const NEUTRAL = {
+  bg:'#121114', surf:'#1B1A1E', surf2:'#221F27', surf3:'#2C2A31',
+  border:'#221F27', border2:'#322F38',
+  text:'#EDEAE4', t2:'#8E8A93', t3:'#5D5A64',
+  ok:'#6FA96B', info:'#6E90C4', warn:'#C98A3E', idle:'#3E3B45', danger:'#C2606A',
 };
+
+// #RRGGBB -> [r,g,b]
+const hex2rgb = h => { const n=parseInt(h.slice(1),16); return [n>>16&255,n>>8&255,n&255]; };
+const rgb2hex = ([r,g,b]) => '#'+[r,g,b].map(v=>Math.round(v).toString(16).padStart(2,'0')).join('').toUpperCase();
+// a ueber b mit Anteil t mischen
+const mix = (a,b,t) => rgb2hex(hex2rgb(a).map((v,i)=>v*t+hex2rgb(b)[i]*(1-t)));
+
+// Jede Variante liefert nur ihren Akzent; Hover und Tint werden daraus
+// berechnet, damit sie garantiert zusammenpassen.
+const ACCENTS = {
+  'Tonstudio': '#E5A03C',  // Bernstein — der Entwurf
+  'Kupfer':    '#C77B52',
+  'Salbei':    '#7E9E6C',
+  'Stahl':     '#6E90C4',
+  'Asche':     '#B0A89C',
+};
+const THEMES = Object.fromEntries(Object.entries(ACCENTS).map(([name,accent])=>[name,{
+  ...NEUTRAL,
+  accent,
+  'accent-h':    mix(accent,'#FFFFFF',.80),
+  'accent-tint': mix(accent,NEUTRAL.bg,.10),
+}]));
+
 const FONTS = {
-  'Inter':      '"Inter",system-ui,sans-serif',
-  'Monospace':  '"JetBrains Mono","Courier New",monospace',
-  'Playfair':   '"Playfair Display",Georgia,serif',
-  'System':     '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+  'Plex Sans': '"IBM Plex Sans",system-ui,sans-serif',
+  'Archivo':   '"Archivo",system-ui,sans-serif',
+  'Plex Mono': '"IBM Plex Mono",ui-monospace,monospace',
+  'System':    '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
 };
-const DESIGN_LS = 'bandsync-design-v3';
-const loadDesign = () => { try{return JSON.parse(localStorage.getItem(DESIGN_LS))||{theme:'Dark Studio',font:'Inter',radius:10};}catch{return{theme:'Dark Studio',font:'Inter',radius:10};} };
+
+// v4: der Schluessel wurde mit dem Tonstudio-Redesign hochgezaehlt.
+// Aeltere Staende zeigten auf Themes/Schriften, die es nicht mehr gibt —
+// so bekommt jedes Geraet einmalig die neuen Voreinstellungen.
+const DESIGN_LS = 'bandsync-design-v4';
+const DESIGN_DEFAULT = {theme:'Tonstudio', font:'Plex Sans', radius:0};
+
+const loadDesign = () => {
+  try { return {...DESIGN_DEFAULT, ...(JSON.parse(localStorage.getItem(DESIGN_LS))||{})}; }
+  catch { return {...DESIGN_DEFAULT}; }
+};
+
 const applyDesign = ({theme,font,radius}) => {
-  const t=THEMES[theme]||THEMES['Dark Studio'], r=radius??10, root=document.documentElement;
+  const t = THEMES[theme]||THEMES[DESIGN_DEFAULT.theme];
+  const r = radius ?? DESIGN_DEFAULT.radius;
+  const root = document.documentElement;
   Object.entries(t).forEach(([k,v])=>root.style.setProperty(`--${k}`,v));
-  root.style.setProperty('--glow',t.purple+'28');
   root.style.setProperty('--r',`${r}px`);
-  root.style.setProperty('--r-sm',`${Math.max(2,Math.round(r*.6))}px`);
+  root.style.setProperty('--r-sm',`${Math.max(0,Math.round(r*.6))}px`);
   root.style.setProperty('--r-lg',`${Math.round(r*1.5)}px`);
-  document.body.style.fontFamily=FONTS[font]||FONTS['Inter'];
+  const f = FONTS[font]||FONTS[DESIGN_DEFAULT.font];
+  root.style.setProperty('--f-body',f);
+  document.body.style.fontFamily = f;
 };

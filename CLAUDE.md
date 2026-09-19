@@ -71,7 +71,7 @@ Draufschauen. Bewährtes Vorgehen:
 3. Alle `getComputedStyle`-Werte einsammeln; die alte Seite legt sie in
    `localStorage`, die neue vergleicht und zählt Differenzen.
 4. **Vor dem Messen warten, bis sich das Layout nicht mehr ändert.** Sonst
-   misst man den Webfont-Swap (Inter gegen Fallback) statt echter Unterschiede
+   misst man den Webfont-Swap (Archivo/Plex gegen Fallback) statt echter Unterschiede
    — das erzeugt Hunderte falscher Treffer. `document.fonts.ready` hilft hier
    *nicht*, weil das Tailwind-CDN laufend Styles nachschiebt; stattdessen
    `offsetWidth/offsetHeight` aller Knoten pollen, bis zwei Messungen gleich sind.
@@ -85,8 +85,27 @@ Danach `js_old/` und die Harness-Dateien wieder löschen.
 * `CommentsThread` nutzt bewusst nur **ein** `where('docId','==',…)` und
   sortiert clientseitig — so braucht Firestore keinen Composite-Index.
   Nicht in eine `orderBy`-Query umbauen.
-* Vorschläge und Songs liegen in **derselben** Collection `songs`,
-  unterschieden nur durch `status === 'suggested'`.
-* Design-Einstellungen liegen in `localStorage` (`bandsync-design-v3`),
-  nicht in Firestore — also pro Gerät.
-* `js/core/react-hooks.js` muss die erste geladene JS-Datei bleiben.
+* Vorschläge („Ideen“) und Songs liegen in **derselben** Collection `songs`,
+  unterschieden nur durch `status === 'suggested'`. Sie haben keinen eigenen
+  Reiter mehr, sondern stehen als Abschnitt/Filter im Repertoire.
+* Verfügbarkeit hat zwei Ebenen: `slots` (Standardwoche, Wochentag) und
+  `dates` (einzelne Kalendertage, `false` = Ausnahme). Immer über
+  `availAt()` lesen, nie direkt — sonst geht der Vorrang verloren.
+* Das Songblatt (`songs.sheet`) ist ChordPro-artiger Text; die Syntax steht
+  in [ARCHITECTURE.md](ARCHITECTURE.md#das-blatt) und wird von `parseSheet()`
+  in `js/core/chords.js` gelesen. `sheet` ist die **einzige** Ablage — auch
+  Markierungen (Atem/Halten) stehen dort, nicht in einem zweiten Feld.
+* Beim Einfügen wandelt `normalizeSheet()` das Zwei-Zeilen-Format von
+  Akkordseiten um. Die Erkennung ist absichtlich streng (jedes Wort der Zeile
+  muss ein Akkord sein *und* darunter muss Text stehen) — beim Lockern fangen
+  deutsche Zeilen wie „Am Himmel …“ an, als Akkorde durchzugehen.
+* Eine Probe aus einer Rasterzelle setzt **keine** Zusagen. Verfügbarkeit ist
+  nicht Teilnahme; das bestätigt jede Person selbst.
+* Design-Einstellungen liegen in `localStorage` (`bandsync-design-v4`),
+  nicht in Firestore — also pro Gerät. Den Schlüssel hochzählen, wenn ein
+  Redesign alte Theme- oder Font-Namen entfernt.
+* `js/core/react-hooks.js` muss die erste geladene JS-Datei bleiben,
+  `js/components/icons.js` muss vor `ui.js` kommen.
+* Avatare sind **Initialen** (`Av` in `ui.js`, `initials()` in `helpers.js`).
+  Das Firestore-Feld `users.avatar` wird beim Registrieren weiter geschrieben,
+  aber nicht mehr angezeigt — nicht „aufräumen“, es ist der Rückweg zu Emoji.

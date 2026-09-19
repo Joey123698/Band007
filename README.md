@@ -18,18 +18,25 @@ js/core/
   tailwind-config.js          Tailwind-Theme, verweist auf die CSS-Variablen
   theme.js                    THEMES, FONTS, loadDesign(), applyDesign()
   constants.js                Rollen, Genres, Status, Farben, Avatare
-  helpers.js                  uid(), toKey(), getWeekDays(), …
+  helpers.js                  uid(), toKey(), getWeekDays(), initials(), availAt(), …
+  chords.js                   Transponieren, Griffbilder, Blatt-Parser
   firebase.js                 db, auth, initFB()
 
 js/components/
-  ui.js                       Card, Btn, PillBtn, Badge, Inp, Txta, Sel, Fld, Av, Empty
+  icons.js                    Ic() — Strich-Icons (vor ui.js laden)
+  ui.js                       Card, Btn, PillBtn, Badge, Inp, Txta, Sel, Fld, Av,
+                              SectionLabel, PageHead, Empty
+  chordchart.js               ChordDiagram
+  sheet.js                    SheetView — Text mit Akkorden, Markieren per Auswahl
   comments.js                 CommentsThread (Sessions + Songs)
   attendance.js               AttendanceSection
   hero.js                     DashboardHero, MiniCalendar
-  nav.js                      BottomNav
+  nav.js                      BottomNav (mobil) + SideNav (ab md)
 
 js/pages/
-  auth.js  dashboard.js  schedule.js  songs.js  suggest.js  profile.js
+  auth.js  dashboard.js  schedule.js  songs.js  songdetail.js
+  performance.js              Vollbild zum Singen (Autoscroll, Bildschirm bleibt an)
+  profile.js
 
 js/app.js                     App() + ReactDOM-Render (muss zuletzt kommen)
 ```
@@ -69,11 +76,14 @@ Eingebunden über das Play-CDN (`cdn.tailwindcss.com`), konfiguriert in
 | `bg-surf` `bg-surf-2` `bg-surf-3` | `--surf` `--surf2` `--surf3` |
 | `border-line` `border-line-2` | `--border` `--border2` |
 | `text-ink` `text-ink-2` `text-ink-3` | `--text` `--t2` `--t3` |
-| `bg-brand-purple` `text-brand-gold` … | `--purple` `--gold` … |
+| `bg-accent` `text-accent` `bg-accent-tint` | `--accent` `--accent-h` `--accent-tint` |
+| `text-ok` `-info` `-warn` `-idle` `-danger` | Statusfarben |
 | `rounded-theme` `rounded-theme-sm` `rounded-theme-lg` `rounded-pill` | `--r` … |
-| `shadow-glow` | `--glow` |
+| `font-app` `font-display` `font-mono` | `--f-body` `--f-display` `--f-mono` |
 
-Tailwinds eigene Paletten (`bg-purple-500`, …) funktionieren weiterhin.
+`accent` ist die einzige Signalfarbe des Designs (Bernstein); die
+Statusfarben sind absichtlich gedämpft. Tailwinds eigene Paletten
+(`bg-purple-500`, …) funktionieren weiterhin, gehören aber nicht ins Design.
 
 Alle Komponenten und Seiten nutzen Tailwind-Klassen. Werte, die zur Laufzeit
 aus Props oder State kommen (`color`, `background`, Gradients, berechnete

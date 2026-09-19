@@ -13,33 +13,57 @@ function AttendanceSection({session,user,profile}){
     setShowDecline(false); setReason('');
   };
   const clear=async()=>{ const u={...att}; delete u[user.uid]; await db.collection('sessions').doc(session.id).update({attendance:u}); };
-  return <div className="border-t border-line pt-3 mt-3">
-    <div className="text-[10px] font-bold text-ink-2 tracking-[.5px] uppercase mb-2.5">Meine Teilnahme</div>
-    {mine ? <div className="flex items-center gap-2.5 px-3 py-2 rounded-theme-sm border mb-2.5"
-      style={{background:mine.status==='confirmed'?'rgba(16,185,129,.1)':'rgba(239,68,68,.1)',borderColor:mine.status==='confirmed'?'rgba(16,185,129,.3)':'rgba(239,68,68,.3)'}}>
-      <span>{mine.status==='confirmed'?'✅':'❌'}</span>
-      <span className="text-[12px] font-semibold flex-1" style={{color:mine.status==='confirmed'?'var(--green)':'var(--red)'}}>{mine.status==='confirmed'?'Ich komme':'Abgesagt'}{mine.reason&&` — ${mine.reason}`}</span>
-      <button onClick={clear} className="bg-transparent border-none text-ink-3 cursor-pointer text-[11px]">Ändern</button>
-    </div> : showDecline ? <div className="mb-2.5 flex flex-col gap-[7px]">
-      <Inp value={reason} onChange={e=>setReason(e.target.value)} placeholder="Grund (optional)..." style={{fontSize:12}}/>
+
+  const ok = mine?.status==='confirmed';
+  return <div className="border-t border-line pt-4 mt-4">
+    <SectionLabel color="var(--t3)">Meine Teilnahme</SectionLabel>
+
+    {mine ? <div className="flex items-center gap-2.5 px-3 py-2.5 mb-3 rounded-theme-sm"
+      style={{background:hexa(ok?'#6FA96B':'#C2606A',.10),borderLeft:`2px solid ${ok?'var(--ok)':'var(--danger)'}`}}>
+      <Ic name={ok?'check':'x'} size={15} sw={2.2} color={ok?'var(--ok)':'var(--danger)'}/>
+      <span className="text-[12.5px] font-semibold flex-1" style={{color:ok?'var(--ok)':'var(--danger)'}}>
+        {ok?'Ich komme':'Abgesagt'}{mine.reason&&<span className="text-ink-2 font-normal"> — {mine.reason}</span>}
+      </span>
+      <button onClick={clear} className="lab text-ink-3 hover:text-ink cursor-pointer">Ändern</button>
+    </div>
+
+    : showDecline ? <div className="mb-3 flex flex-col gap-2">
+      <Inp value={reason} onChange={e=>setReason(e.target.value)} placeholder="Grund (optional) …"/>
       <div className="flex gap-1.5">
-        <Btn onClick={()=>set('declined')} style={{flex:1,background:'rgba(239,68,68,.15)',color:'var(--red)',border:'1px solid rgba(239,68,68,.3)'}}>Absagen bestätigen</Btn>
-        <Btn onClick={()=>setShowDecline(false)} size="sm">Zurück</Btn>
+        <Btn onClick={()=>set('declined')} variant="danger" style={{flex:1}}>Absage bestätigen</Btn>
+        <Btn onClick={()=>setShowDecline(false)} variant="quiet">Zurück</Btn>
       </div>
-    </div> : <div className="flex gap-[7px] mb-2.5">
-      <button onClick={()=>set('confirmed')} className="flex-1 p-[9px] rounded-theme-sm border font-bold text-[13px] cursor-pointer"
-        style={{borderColor:'rgba(16,185,129,.4)',background:'rgba(16,185,129,.1)',color:'var(--green)'}}>✓ Ich komme</button>
-      <button onClick={()=>setShowDecline(true)} className="flex-1 p-[9px] rounded-theme-sm border font-bold text-[13px] cursor-pointer"
-        style={{borderColor:'rgba(239,68,68,.4)',background:'rgba(239,68,68,.1)',color:'var(--red)'}}>✗ Absagen</button>
+    </div>
+
+    : <div className="grid grid-cols-2 gap-1.5 mb-3">
+      <button onClick={()=>set('confirmed')}
+        className="h-11 rounded-theme-sm border font-semibold text-[13px] cursor-pointer flex items-center justify-center gap-2 transition-colors duration-100"
+        style={{borderColor:hexa('#6FA96B',.45),background:hexa('#6FA96B',.10),color:'var(--ok)'}}>
+        <Ic name="check" size={15} sw={2.2}/> Ich komme
+      </button>
+      <button onClick={()=>setShowDecline(true)}
+        className="h-11 rounded-theme-sm border font-semibold text-[13px] cursor-pointer flex items-center justify-center gap-2 transition-colors duration-100"
+        style={{borderColor:hexa('#C2606A',.45),background:hexa('#C2606A',.08),color:'var(--danger)'}}>
+        <Ic name="x" size={14} sw={2.2}/> Absagen
+      </button>
     </div>}
-    <div className="grid grid-cols-2 gap-2">
-      {[{arr:confirmed,label:'ZUSAGEN',color:'var(--green)',bg:'rgba(16,185,129,.07)',bc:'rgba(16,185,129,.2)'},{arr:declined,label:'ABSAGEN',color:'var(--red)',bg:'rgba(239,68,68,.07)',bc:'rgba(239,68,68,.2)'}].map(({arr,label,color,bg,bc})=>
-        <div key={label} className="px-2.5 py-2 rounded-theme-sm border" style={{background:bg,borderColor:bc}}>
-          <div className="text-[10px] font-bold mb-[5px]" style={{color}}>{label} ({arr.length})</div>
-          {arr.length===0?<div className="text-[10px] text-ink-3">Noch niemand</div>:arr.map((m,i)=><div key={i} className="flex gap-1 items-center mb-0.5">
-            <span className="text-[11px]">{m.avatar}</span><span className="text-[11px] text-ink">{m.name}</span>
-            {m.reason&&<span className="text-[9px] text-ink-3">— {m.reason}</span>}
-          </div>)}
+
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {[{arr:confirmed,label:'Zusagen',c:'#6FA96B'},{arr:declined,label:'Absagen',c:'#C2606A'}].map(({arr,label,c})=>
+        <div key={label} className="px-3 py-2.5 rounded-theme-sm border border-line">
+          <div className="flex items-baseline justify-between mb-2">
+            <span className="lab" style={{color:c}}>{label}</span>
+            <span className="num text-[11px]" style={{color:c}}>{arr.length}</span>
+          </div>
+          {arr.length===0
+            ? <div className="text-[11px] text-ink-3">Noch niemand</div>
+            : <div className="flex flex-col gap-1.5">{arr.map((m,i)=>
+                <div key={i} className="flex gap-2 items-center">
+                  <Av name={m.name} role={m.role} size={20}/>
+                  <span className="text-[11.5px] text-ink truncate">{m.name}</span>
+                  {m.reason&&<span className="text-[10.5px] text-ink-3 truncate">— {m.reason}</span>}
+                </div>)}
+              </div>}
         </div>
       )}
     </div>

@@ -1,25 +1,74 @@
+/* ════════════════════════════════════════════════════
+   TONSTUDIO — Reset + Design-Tokens
+   Warmes Anthrazit, EIN Akzent (Bernstein), Haarlinien,
+   keine Radien, kein Glow. Schrift: Archivo (Display),
+   IBM Plex Sans (Text), IBM Plex Mono (Zahlen/Akkorde).
+   ════════════════════════════════════════════════════ */
+
 /* Tailwind laeuft mit preflight:false. Diese Zeile uebernimmt die eine
    Preflight-Regel, die Tailwind zwingend braucht: ohne border-style
    zeichnet `border` / `border-t` keinen Rahmen. */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;border-width:0;border-style:solid;}
 :root{
-  --bg:#06060F;--surf:#0C0C1E;--surf2:#111128;--surf3:#16163A;
-  --border:#1C1C40;--border2:#242455;
-  --text:#E2E2F5;--t2:#7070A8;--t3:#38386A;
-  --purple:#7C3AED;--gold:#F59E0B;--green:#10B981;
-  --red:#EF4444;--cyan:#06B6D4;--pink:#EC4899;
-  --glow:rgba(124,58,237,.18);
-  --r:10px;--r-sm:6px;--r-lg:14px;--r-pill:999px;
+  /* Flaechen — von dunkel nach hell */
+  --bg:#121114;--surf:#1B1A1E;--surf2:#221F27;--surf3:#2C2A31;
+  /* Linien — `border` fuer Zeilen, `border2` fuer Bedienelemente */
+  --border:#221F27;--border2:#322F38;
+  /* Text */
+  --text:#EDEAE4;--t2:#8E8A93;--t3:#5D5A64;
+  /* Akzent — genau einer. `tint` ist der Akzent ueber --bg gemischt. */
+  --accent:#E5A03C;--accent-h:#F2B75E;--accent-tint:#241F1B;
+  /* Status — bewusst gedaempft, nie lauter als der Akzent */
+  --ok:#6FA96B;--info:#6E90C4;--warn:#C98A3E;--idle:#3E3B45;--danger:#C2606A;
+  /* Radien — Tonstudio ist eckig; der Regler im Profil kann das aufweichen */
+  --r:0px;--r-sm:0px;--r-lg:0px;--r-pill:999px;
+  /* Schrift */
+  --f-display:'Archivo',system-ui,sans-serif;
+  --f-body:'IBM Plex Sans',system-ui,sans-serif;
+  --f-mono:'IBM Plex Mono',ui-monospace,'Courier New',monospace;
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;}
-#root{height:100%;}
-button,input,select,textarea{font-family:inherit;}
-a{color:var(--cyan);}
-::-webkit-scrollbar{width:3px;height:3px;}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
-.spin{width:22px;height:22px;border:2px solid var(--border2);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
+html{-webkit-text-size-adjust:100%;}
+html,body{min-height:100%;background:var(--bg);color:var(--text);
+  font-family:var(--f-body);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
+button,input,select,textarea{font-family:inherit;color:inherit;}
+button{background-color:transparent;}
+a{color:var(--accent);text-decoration:none;}
+a:hover{color:var(--accent-h);}
+
+/* Der alte Code setzte ueberall `outline:none` ohne Ersatz. Eine sichtbare
+   Tastatur-Fokusmarke gehoert zum Design, nicht dagegen. */
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);}
+*{scrollbar-width:thin;scrollbar-color:var(--border2) transparent;}
+
+/* ── Wiederkehrende Textrollen ────────────────────────────
+   `.lab` ist das Mono-Kleinlabel aus dem Entwurf (TONART, STATUS, …),
+   `.num` alles, was als Messwert gelesen wird,
+   `.disp` die Archivo-Versalien der Seitentitel. */
+.lab{font-family:var(--f-mono);font-size:9px;font-weight:600;
+  letter-spacing:.15em;text-transform:uppercase;}
+.num{font-family:var(--f-mono);font-weight:700;font-variant-numeric:tabular-nums;}
+.disp{font-family:var(--f-display);font-weight:800;letter-spacing:-.03em;line-height:1;}
+
+/* Akzentstreifen links — Hinweis, Notiz, hervorgehobener Block */
+.rail-a{border-left:2px solid var(--accent);background:var(--surf);}
+
+.spin{width:20px;height:20px;border:1.5px solid var(--border2);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
 @keyframes spin{to{transform:rotate(360deg)}}
-.fade{animation:fadeUp .2s ease;}
-@keyframes fadeUp{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
-input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border2);outline:none;}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--purple);cursor:pointer;}
+.fade{animation:fadeUp .18s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+input[type=range]{-webkit-appearance:none;width:100%;height:2px;background:var(--border2);outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;
+  background:var(--accent);cursor:pointer;border-radius:0;}
+input[type=range]::-moz-range-thumb{width:14px;height:14px;background:var(--accent);
+  cursor:pointer;border:0;border-radius:0;}
+
+/* Datums-/Zeitfelder zeigen sonst ein schwarzes UA-Icon auf dunklem Grund. */
+input[type=date]::-webkit-calendar-picker-indicator,
+input[type=time]::-webkit-calendar-picker-indicator{
+  filter:invert(.62) sepia(.5) saturate(4) hue-rotate(350deg);cursor:pointer;}

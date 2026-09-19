@@ -2,11 +2,15 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <!-- maximum-scale ist bewusst raus: Zoom darf der Nutzer nicht verboten werden. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="color-scheme" content="dark"/>
+  <meta name="theme-color" content="#121114"/>
   <title>BandSync</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500&family=Playfair+Display:ital,wght@0,800;1,700&display=swap" rel="stylesheet">
+  <!-- Archivo = Display, IBM Plex Sans = Text, IBM Plex Mono = Zahlen/Akkorde -->
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -38,10 +42,14 @@
 <script type="text/babel" src="js/core/theme.js"></script>
 <script type="text/babel" src="js/core/constants.js"></script>
 <script type="text/babel" src="js/core/helpers.js"></script>
+<script type="text/babel" src="js/core/chords.js"></script>
 <script type="text/babel" src="js/core/firebase.js"></script>
 
 <!-- 2. Wiederverwendbare Komponenten -->
+<script type="text/babel" src="js/components/icons.js"></script>
 <script type="text/babel" src="js/components/ui.js"></script>
+<script type="text/babel" src="js/components/chordchart.js"></script>
+<script type="text/babel" src="js/components/sheet.js"></script>
 <script type="text/babel" src="js/components/comments.js"></script>
 <script type="text/babel" src="js/components/attendance.js"></script>
 <script type="text/babel" src="js/components/hero.js"></script>
@@ -52,7 +60,8 @@
 <script type="text/babel" src="js/pages/dashboard.js"></script>
 <script type="text/babel" src="js/pages/schedule.js"></script>
 <script type="text/babel" src="js/pages/songs.js"></script>
-<script type="text/babel" src="js/pages/suggest.js"></script>
+<script type="text/babel" src="js/pages/songdetail.js"></script>
+<script type="text/babel" src="js/pages/performance.js"></script>
 <script type="text/babel" src="js/pages/profile.js"></script>
 
 <!-- 4. App-Einstieg (muss zuletzt kommen) -->

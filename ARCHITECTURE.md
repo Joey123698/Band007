@@ -39,17 +39,22 @@ index.html
 App()
  ├─ kein Firebase-Config?  → Hinweis-Screen
  ├─ nicht eingeloggt?      → <AuthScreen/>
- └─ eingeloggt             → <DashboardPage|SchedulePage|SongsPage|SuggestPage|ProfilePage/>
-                             + <BottomNav/>
+ └─ eingeloggt             → <DashboardPage|SchedulePage|SongsPage|ProfilePage/>
+                             + <SideNav/> (ab md) + <BottomNav/> (darunter)
 ```
+
+Im Songs-Reiter liegt eine zweite Ebene: ist `openSongId` gesetzt, rendert
+`<SongDetailPage/>` statt der Liste. Der Zustand haengt in `app.js`, ein
+Tabwechsel raeumt ihn weg.
 
 ---
 
 ## 3. Dateien — und wofür man sie öffnet
 
 ### `css/styles.css`
-Der globale Reset, die CSS-Variablen (`--bg`, `--surf`, `--purple`, `--r`, …),
-der Spinner und das Range-Input.
+Der globale Reset, die CSS-Variablen (`--bg`, `--surf`, `--accent`, `--r`, …),
+die Textrollen-Klassen (`.lab` `.num` `.disp` `.rail-a`), der Spinner und das
+Range-Input.
 
 > **Achtung:** Der Universal-Selektor setzt `border-width:0; border-style:solid`.
 > Das ist die eine Preflight-Regel, die Tailwind zwingend braucht — ohne sie
@@ -65,18 +70,22 @@ der Spinner und das Range-Input.
 | `tailwind-config.js` | Tailwind-Theme → CSS-Variablen | neue Design-Tokens |
 | `theme.js` | `THEMES`, `FONTS`, `loadDesign`, `applyDesign` | neues Farbschema / neue Schriftart |
 | `constants.js` | Rollen, Genres, `STATUS_MAP`, `ROLE_COLORS`, `AVATARS` | neue Rolle, neuer Song-Status |
-| `helpers.js` | `uid`, `toKey`, `dfmt`, `getWeekDays`, `extractYTId`, … | neue Hilfsfunktion |
+| `helpers.js` | `uid`, `toKey`, `dfmt`, `getWeekDays`, `extractYTId`, `initials`, `hexa`, `availAt`, `daysSince`, … | neue Hilfsfunktion |
+| `chords.js` | `transposeChord`, `chordShape`, `SHAPES`, `parseSheet`, `serializeUnits`, `normalizeSheet`, `sheetChords`, Blatt- und Tempo-Einstellungen | neuer Griff, neue Blatt-Syntax |
 | `firebase.js` | `db`, `auth`, `initFB()` | nie |
 
 ### `js/components/` — wiederverwendbar
 
 | Datei | Exportiert | Benutzt von |
 |---|---|---|
-| `ui.js` | `Card` `Btn` `PillBtn` `Badge` `Inp` `Txta` `Sel` `Fld` `Av` `Empty` | überall |
+| `icons.js` | `Ic`, `ICON_PATHS` | überall (muss **vor** `ui.js` geladen werden) |
+| `ui.js` | `Card` `Btn` `PillBtn` `Badge` `Inp` `Txta` `Sel` `Fld` `Av` `SectionLabel` `PageHead` `Empty` | überall |
+| `chordchart.js` | `ChordDiagram` | Songdetail, Singen-Modus |
+| `sheet.js` | `SheetView` — der gerenderte Text mit Akkorden | Songdetail (Blatt + Vorschau), Singen-Modus |
 | `comments.js` | `CommentsThread` | Songs + Sessions |
 | `attendance.js` | `AttendanceSection` | Dashboard |
 | `hero.js` | `DashboardHero`, `MiniCalendar` | Dashboard |
-| `nav.js` | `BottomNav` | App |
+| `nav.js` | `BottomNav` (bis `md`), `SideNav` (ab `md`), `NAV_TABS` | App |
 
 `ui.js` ist die **Design-System-Schicht**. Eine Änderung dort wirkt auf die
 ganze App — genau dafür ist sie da. Einzelne Aufrufstellen können per
@@ -89,8 +98,9 @@ ganze App — genau dafür ist sie da. Einzelne Aufrufstellen können per
 | `auth.js` | `AuthScreen` | `users` (beim Registrieren) |
 | `dashboard.js` | `DashboardPage` | liest nur Props |
 | `schedule.js` | `SchedulePage`, `SessionCard` | `availability`, `locations`, `sessions` |
-| `songs.js` | `SongsPage` | `songs`, `comments` |
-| `suggest.js` | `SuggestPage` | `songs` |
+| `songs.js` | `SongsPage` — Repertoire **und** Ideen | `songs` |
+| `songdetail.js` | `SongDetailPage` — das Blatt | `songs`, `comments` |
+| `performance.js` | `PerformanceMode` — Vollbild zum Singen | liest nur Props |
 | `profile.js` | `ProfilePage` | `users`, `settings` |
 
 ### `js/app.js`
@@ -123,20 +133,89 @@ Zwei Collections werden lokal in `schedule.js` abonniert
 |---|---|---|
 | `users` | Auth-UID | `displayName`, `role`, `avatar`, `bio`, `skills[]`, `playableSongs[]`, `favoriteSongs[]` |
 | `sessions` | auto | `title`, `date`, `time`, `location`, `leadId`, `leadName`, `setlist[]`, `attendance{uid:…}`, `status` |
-| `songs` | auto | `title`, `artist`, `genre`, `status`, `votes[]`, `roleAssignments[]`, `structureNotes`, `youtubeLink`, `spotifyLink` |
+| `songs` | auto | `title`, `artist`, `genre`, `status`, `votes[]`, `roleAssignments[]`, `structureNotes`, `youtubeLink`, `spotifyLink`, **`key`**, **`capo`**, **`bpm`**, **`sheet`**, **`lyricNotes[]`** |
 | `comments` | auto | `docId` (= Song-ID), `userId`, `text`, `createdAt` |
 | `sessionComments` | auto | `docId` (= Session-ID), … wie oben |
-| `availability` | Auth-UID | `slots{ "<tag>_<stunde>": true }` |
+| `availability` | Auth-UID | `slots{ "<tag>_<stunde>": true }`, **`dates{ "<JJJJ-MM-TT>_<stunde>": true\|false }`**, `updatedAt` |
 | `locations` | auto | `name` |
 | `settings` | `"main"` | `bandName` |
+
+Alle **fett** gesetzten Felder sind optional und kamen mit dem Blatt bzw.
+dem datumsbasierten Probeplan dazu. Fehlen sie, funktioniert der Datensatz
+unveraendert — deshalb war keine Migration noetig.
 
 > `CommentsThread` filtert bewusst nur nach **einem** `where('docId','==',…)`
 > und sortiert clientseitig. Grund: so braucht Firestore keinen
 > Composite-Index. Nicht „optimieren“, sonst bricht es in Produktion.
 
-`songs` trägt beide Welten: `status === 'suggested'` erscheint unter
-**Vorschläge**, alles andere unter **Songs**. Der Button „→ Üben“ setzt nur
-`status` auf `practicing` — es wird nichts kopiert oder verschoben.
+### Ideen und Songs
+
+`songs` trägt beide Welten: `status === 'suggested'` ist eine **Idee**, alles
+andere gehört zum Repertoire. Beide stehen auf derselben Seite (`songs.js`) —
+Ideen als eigener Abschnitt bzw. Filter. „→ Üben“ setzt nur `status` auf
+`practicing`; es wird nichts kopiert oder verschoben.
+
+### Verfügbarkeit: zwei Ebenen
+
+`slots` ist die **Standardwoche** (Wochentag 0–6 plus Stunde) und gilt für jede
+Woche. `dates` übersteuert einzelne Kalendertage — `true` heißt „kann doch“,
+`false` heißt „kann diesmal nicht“. Fehlt ein Datumseintrag, zählt die
+Standardwoche. `availAt()` in `helpers.js` ist die einzige Stelle, die diese
+Regel kennt; alles andere fragt dort nach.
+
+Deckt sich eine Wahl wieder mit der Standardwoche, wird der Eintrag
+**gelöscht** statt gespeichert — sonst sammeln sich tote Ausnahmen an.
+„Wie letzte Woche“ überträgt die tatsächliche Verfügbarkeit der Vorwoche nach
+derselben Regel.
+
+Eine Probe, die aus einer Rasterzelle entsteht, übernimmt **nur Datum und
+Uhrzeit**. `attendance` bleibt leer: „ich habe Zeit“ ist nicht dasselbe wie
+„ich komme“ — das sagt jede Person selbst auf der Probenkarte.
+
+### Das Blatt
+
+`sheet` ist ein Textfeld im ChordPro-Stil, `parseSheet()` in `chords.js`
+macht daraus Abschnitte und Zeilen:
+
+| Schreibweise | Bedeutung |
+|---|---|
+| `[G]` | Akkord über der folgenden Silbe |
+| `: Strophe 1 @ 0:48` | Abschnitt, Zeitangabe optional |
+| `> Text` | fester Hinweis im Blatt |
+| `~…~` | Atem (Bernstein unterlegt) |
+| `=…=` | Halten (grün unterlegt) |
+
+Markierungen dürfen Akkorde umschließen: `~hell und [D]klar;~`.
+`lyricNotes[]` hängt an der **Zeilennummer** (`line`) — nur Textzeilen zählen,
+Abschnitte und Hinweise nicht.
+
+`serializeUnits()` ist das Gegenstück zu `parseUnits()`. Beide zusammen
+erlauben das Markieren per Textauswahl: Zeile parsen → Markierung auf die
+betroffenen Einheiten setzen → zurück in Quelltext schreiben. `sheet` bleibt
+damit die einzige Wahrheit; es gibt keine zweite Datenstruktur für Markierungen.
+
+**Einfügen von einer Akkordseite.** `normalizeSheet()` erkennt das
+Zwei-Zeilen-Format (Akkorde über dem Text) und wandelt es um. Eine Zeile gilt
+als Akkordzeile, wenn *jedes* Wort darauf ein Akkord ist **und** darunter eine
+echte Textzeile steht — deutsche Zeilen wie „Am Himmel hell und klar“ fallen
+damit durch. Zwei Korrekturen fangen den üblichen Versatz kopierter Blätter ab:
+ein Akkord auf Leerraum wandert zum nächsten Wort, und bis zu zwei Zeichen
+hinter einem Wortanfang rutscht er auf den Wortanfang zurück. Tiefer im Wort
+bleibt er stehen — dort ist die Platzierung Absicht (`auf-ge-[G]gangen`).
+Der Editor ruft das beim `paste` auf und bietet „Rückgängig“ an; die Vorschau
+daneben zeigt sofort, wo die Akkorde gelandet sind.
+
+### Singen-Modus
+
+`PerformanceMode` liegt als Overlay (`z-200`) über allem und hängt in
+`js/app.js`, weil er aus zwei Richtungen startet: aus einem Blatt (ein Song)
+und aus der Setliste einer Probe (mehrere, mit Vor/Zurück).
+
+Das Scrolltempo ist bewusst ein Regler und **nicht** aus `bpm` gerechnet: wie
+schnell das Blatt laufen muss, hängt daran, wie viele Takte auf einer Zeile
+stehen. Der Wert wird pro Song in `localStorage` gemerkt
+(`bandsync-sheet-v1` → `speeds`). Solange der Modus offen ist, hält die
+Wake-Lock-API den Bildschirm an; nach dem Wegschalten wird sie neu angefordert.
 
 ---
 
@@ -145,9 +224,9 @@ Zwei Collections werden lokal in `schedule.js` abonniert
 Eine Kette, drei Glieder:
 
 ```
-ProfilePage (🎨 Design)
+ProfilePage (Design)
    └─ onDesignUpdate({theme|font|radius})
-        └─ applyDesign()  schreibt --bg, --surf, --purple, --r … auf :root
+        └─ applyDesign()  schreibt --bg, --surf, --accent, --r, --f-body … auf :root
              ├─ css/styles.css      nutzt die Variablen
              ├─ Inline-Styles       nutzen var(--…)
              └─ Tailwind-Klassen    nutzen sie über tailwind-config.js
@@ -156,8 +235,14 @@ ProfilePage (🎨 Design)
 Deshalb folgt **auch jede Tailwind-Klasse** dem gewählten Theme:
 `bg-surf` ist `var(--surf)`, nicht eine feste Farbe.
 
-Die Auswahl liegt in `localStorage` unter `bandsync-design-v3` — pro Gerät,
+Die Auswahl liegt in `localStorage` unter `bandsync-design-v4` — pro Gerät,
 nicht in Firestore.
+
+> Die fünf Varianten in `THEMES` teilen **dieselbe** Grauleiter und dieselben
+> Statusfarben (`NEUTRAL` in `theme.js`) und unterscheiden sich nur im Akzent.
+> Das ist Absicht: sonst zerfällt das Design in fünf fremde Paletten.
+> Eine neue Variante ist eine Zeile in `ACCENTS` — Hover und Tint rechnet
+> `mix()` daraus aus.
 
 ### Token-Tabelle
 
@@ -167,11 +252,25 @@ nicht in Firestore.
 | `bg-surf` `bg-surf-2` `bg-surf-3` | `--surf` `--surf2` `--surf3` |
 | `border-line` `border-line-2` | `--border` `--border2` |
 | `text-ink` `text-ink-2` `text-ink-3` | `--text` `--t2` `--t3` |
-| `*-brand-purple` `-gold` `-green` `-red` `-cyan` `-pink` | `--purple` … |
+| `*-accent` `-accent-h` `-accent-tint` | `--accent` `--accent-h` `--accent-tint` |
+| `*-ok` `-info` `-warn` `-idle` `-danger` | `--ok` `--info` `--warn` `--idle` `--danger` |
 | `rounded-theme` `-theme-sm` `-theme-lg` `rounded-pill` | `--r` `--r-sm` `--r-lg` `--r-pill` |
-| `shadow-glow` | `--glow` |
+| `font-app` `font-display` `font-mono` | `--f-body` `--f-display` `--f-mono` |
+| `max-w-shell` | 1120px (Inhaltsbreite auf grossen Schirmen) |
 
-Tailwinds eigene Paletten (`bg-purple-500`, …) bleiben nutzbar.
+`accent` ist die **einzige** Signalfarbe. Die Status-Token sind bewusst
+gedämpft — wenn etwas wichtig aussehen soll, ist es `accent`, nicht eine
+sechste Farbe. Tailwinds eigene Paletten (`bg-purple-500`, …) bleiben
+technisch nutzbar, gehören aber nicht ins Design.
+
+### Breakpoints
+
+| Ab | Was sich ändert |
+|---|---|
+| — | Leiste unten (`BottomNav`), eine Spalte, Raster scrollen in sich |
+| `md` (768px) | Schiene links (`SideNav`, 72px, nur Icons), Leiste unten weg, Gutter 32px. Die Schiene braucht `self-start` — als gestrecktes Flex-Kind klebt `sticky` nicht. |
+| `lg` (1024px) | Schiene mit Text (212px), Dashboard und Song-Detail zweispaltig |
+| `xl` (1280px) | Probenkarten zweispaltig |
 
 ---
 
@@ -201,7 +300,8 @@ Zwei Fallen, beide schon einmal zugeschlagen:
 1. `js/pages/meins.js` anlegen, Funktion `MeinePage({…})` definieren.
 2. In `index.html` **vor** `js/app.js` eintragen.
 3. In `js/app.js`: Tab-Key im Render-Switch ergänzen.
-4. In `js/components/nav.js`: Eintrag im `tabs`-Array ergänzen.
+4. In `js/components/nav.js`: Eintrag im `NAV_TABS`-Array ergänzen
+   (ein Icon-Name aus `js/components/icons.js` dazu).
 
 Schritt 2 ist der, den man vergisst — die Seite ist dann schlicht `undefined`.
 

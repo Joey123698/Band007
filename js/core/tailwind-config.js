@@ -21,12 +21,16 @@ tailwind.config = {
         line:  { DEFAULT:'var(--border)',  2:'var(--border2)' },
         // Text
         ink:   { DEFAULT:'var(--text)',    2:'var(--t2)',      3:'var(--t3)' },
-        // Akzente (Tailwinds eigene Paletten bleiben erhalten:
-        // bg-purple-500 funktioniert weiterhin)
-        brand: {
-          purple:'var(--purple)', gold:'var(--gold)',  green:'var(--green)',
-          red:   'var(--red)',    cyan:'var(--cyan)',  pink: 'var(--pink)',
-        },
+        // EIN Akzent. Tonstudio kennt keine zweite Signalfarbe —
+        // alles andere unten ist Status, kein Akzent.
+        accent:{ DEFAULT:'var(--accent)',  h:'var(--accent-h)', tint:'var(--accent-tint)' },
+        // Status. Gedaempft gehalten, damit eine lange Liste nicht
+        // wie eine Ampel aussieht.
+        ok:    'var(--ok)',
+        info:  'var(--info)',
+        warn:  'var(--warn)',
+        idle:  'var(--idle)',
+        danger:'var(--danger)',
       },
       borderRadius: {
         theme:      'var(--r)',
@@ -34,13 +38,16 @@ tailwind.config = {
         'theme-lg': 'var(--r-lg)',
         pill:       'var(--r-pill)',
       },
-      boxShadow: {
-        glow: '0 0 24px var(--glow)',
-      },
       fontFamily: {
-        // folgt der Font-Auswahl aus dem Profil
-        app:  'inherit',
-        mono: ['"JetBrains Mono"', '"Courier New"', 'monospace'],
+        // `app` folgt der Schriftwahl aus dem Profil,
+        // `display` und `mono` sind fest — sie tragen das Design.
+        app:     'var(--f-body)',
+        display: 'var(--f-display)',
+        mono:    'var(--f-mono)',
+      },
+      maxWidth: {
+        // Lesebreite der Inhaltsspalte auf grossen Schirmen
+        shell: '1120px',
       },
     },
   },
