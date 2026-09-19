@@ -11,7 +11,54 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <!-- Archivo = Display, IBM Plex Sans = Text, IBM Plex Mono = Zahlen/Akkorde -->
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">
+
+<!--
+  ═══════════════════════════════════════════════════════════════════
+   APP-DATEIEN — die Reihenfolge ist wichtig!
+   Alle Dateien teilen sich denselben globalen Scope (kein Bundler),
+   jede Datei muss vor ihrer ersten Verwendung stehen, js/app.js zuletzt.
+   Neue Datei: unten in APP_FILES eintragen.
+
+   ⚠ APP_V BEI JEDEM DEPLOY HOCHZAEHLEN.
+   GitHub Pages liefert alles mit `Cache-Control: max-age=600`. Ohne den
+   ?v=-Parameter holt der Browser nach einem Push zwar die neue
+   index.html, aber die alten .js/.css unter denselben Namen — die
+   Mischung sieht dann so aus, als haette sich nichts geaendert.
+  ═══════════════════════════════════════════════════════════════════
+-->
+<script>
+  const APP_V = 2;
+  const APP_FILES = [
+    // 1. Kern / Grundlagen
+    'js/core/react-hooks.js',
+    'js/core/firebase-config.js',
+    'js/core/theme.js',
+    'js/core/constants.js',
+    'js/core/helpers.js',
+    'js/core/chords.js',
+    'js/core/firebase.js',
+    // 2. Wiederverwendbare Komponenten
+    'js/components/icons.js',
+    'js/components/ui.js',
+    'js/components/chordchart.js',
+    'js/components/sheet.js',
+    'js/components/comments.js',
+    'js/components/attendance.js',
+    'js/components/hero.js',
+    'js/components/nav.js',
+    // 3. Seiten
+    'js/pages/auth.js',
+    'js/pages/dashboard.js',
+    'js/pages/schedule.js',
+    'js/pages/songs.js',
+    'js/pages/songdetail.js',
+    'js/pages/performance.js',
+    'js/pages/profile.js',
+    // 4. App-Einstieg (muss zuletzt kommen)
+    'js/app.js',
+  ];
+  document.write('<link rel="stylesheet" href="css/styles.css?v=' + APP_V + '">');
+</script>
 </head>
 <body>
 <div id="root"><div style="display:flex;height:100vh;align-items:center;justify-content:center"><div class="spin"></div></div></div>
@@ -26,45 +73,16 @@
 
 <!-- ═══ Tailwind CSS (Play-CDN, kein Build-Schritt noetig) ═══ -->
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="js/core/tailwind-config.js"></script>
+<script>document.write('<script src="js/core/tailwind-config.js?v=' + APP_V + '"><\/script>');</script>
 
 <!--
-  ═══════════════════════════════════════════════════════════════════
-   APP-DATEIEN — die Reihenfolge ist wichtig!
-   Alle Dateien teilen sich denselben globalen Scope (kein Bundler).
-   Beim Hinzufügen einer neuen Datei: hier unten eintragen.
-  ═══════════════════════════════════════════════════════════════════
+  Die Tags werden geschrieben, waehrend der Parser laeuft — dadurch bleibt
+  die Reihenfolge erhalten und Babel-Standalone findet sie beim Start.
 -->
-
-<!-- 1. Kern / Grundlagen -->
-<script type="text/babel" src="js/core/react-hooks.js"></script>
-<script type="text/babel" src="js/core/firebase-config.js"></script>
-<script type="text/babel" src="js/core/theme.js"></script>
-<script type="text/babel" src="js/core/constants.js"></script>
-<script type="text/babel" src="js/core/helpers.js"></script>
-<script type="text/babel" src="js/core/chords.js"></script>
-<script type="text/babel" src="js/core/firebase.js"></script>
-
-<!-- 2. Wiederverwendbare Komponenten -->
-<script type="text/babel" src="js/components/icons.js"></script>
-<script type="text/babel" src="js/components/ui.js"></script>
-<script type="text/babel" src="js/components/chordchart.js"></script>
-<script type="text/babel" src="js/components/sheet.js"></script>
-<script type="text/babel" src="js/components/comments.js"></script>
-<script type="text/babel" src="js/components/attendance.js"></script>
-<script type="text/babel" src="js/components/hero.js"></script>
-<script type="text/babel" src="js/components/nav.js"></script>
-
-<!-- 3. Seiten -->
-<script type="text/babel" src="js/pages/auth.js"></script>
-<script type="text/babel" src="js/pages/dashboard.js"></script>
-<script type="text/babel" src="js/pages/schedule.js"></script>
-<script type="text/babel" src="js/pages/songs.js"></script>
-<script type="text/babel" src="js/pages/songdetail.js"></script>
-<script type="text/babel" src="js/pages/performance.js"></script>
-<script type="text/babel" src="js/pages/profile.js"></script>
-
-<!-- 4. App-Einstieg (muss zuletzt kommen) -->
-<script type="text/babel" src="js/app.js"></script>
+<script>
+  APP_FILES.forEach(function(p){
+    document.write('<script type="text/babel" src="' + p + '?v=' + APP_V + '"><\/script>');
+  });
+</script>
 </body>
 </html>

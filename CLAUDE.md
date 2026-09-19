@@ -19,8 +19,14 @@ Pages**, **kein Build-Schritt**. JSX wird im Browser von Babel-Standalone
 2. **Kein Build-Schritt einführen** (npm, Vite, Bundler), außer der Nutzer
    fragt ausdrücklich danach. Das Deploy ist `git push`.
 3. **Keine `import`/`export`.** Alle JS-Dateien teilen einen globalen Scope.
-   Neue Datei → in `index.html` eintragen, **vor** der ersten Verwendung und
-   vor `js/app.js`. Wird das vergessen, ist die Komponente `undefined`.
+   Neue Datei → in `index.html` in die Liste `APP_FILES` eintragen, **vor**
+   der ersten Verwendung und vor `js/app.js`. Wird das vergessen, ist die
+   Komponente `undefined`.
+6. **`APP_V` in `index.html` bei jedem Deploy hochzählen.** GitHub Pages
+   liefert alles mit `Cache-Control: max-age=600`. Ohne neuen `?v=`-Wert holt
+   der Browser die neue `index.html`, aber die **alten** `.js`/`.css` unter
+   denselben Namen — das sieht aus, als wäre der Deploy nicht angekommen.
+   Ist einmal passiert; nicht wieder drauf reinfallen.
 4. **Nicht committen oder pushen, wenn der Nutzer nicht darum bittet.**
 5. **Die `border-width:0;border-style:solid`-Zeile in `css/styles.css` bleibt.**
    Ohne sie zeichnet Tailwinds `border` keinen Rahmen (preflight ist aus).
