@@ -135,6 +135,12 @@ Danach `js_old/` und die Harness-Dateien wieder löschen.
   Redesign alte Theme- oder Font-Namen entfernt.
 * `js/core/react-hooks.js` muss die erste geladene JS-Datei bleiben,
   `js/components/icons.js` muss vor `ui.js` kommen.
-* Avatare sind **Initialen** (`Av` in `ui.js`, `initials()` in `helpers.js`).
-  Das Firestore-Feld `users.avatar` wird beim Registrieren weiter geschrieben,
-  aber nicht mehr angezeigt — nicht „aufräumen“, es ist der Rückweg zu Emoji.
+* Avatare: `users.photo` (kleines JPEG als Data-URL) wenn gesetzt, sonst
+  **Initialen** (`Av` in `ui.js`, `initials()` in `helpers.js`). Bewusst kein
+  Firebase Storage — siehe [ARCHITECTURE.md](ARCHITECTURE.md#profilfoto).
+  Neue Bilder immer durch `fileToAvatar()` schicken: `app.js` lädt alle
+  Nutzer auf einmal, ungefiltert wären das schnell Megabyte.
+  Wo nur ein Namensschnappschuss vorliegt (Kommentare, Zusagen), das Bild
+  über `photoOf(members, userId)` holen.
+* Das alte Feld `users.avatar` (Emoji) wird beim Registrieren weiter
+  geschrieben, aber nicht mehr angezeigt — nicht „aufräumen“.

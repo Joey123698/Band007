@@ -155,7 +155,7 @@ Zwei Collections werden lokal in `schedule.js` abonniert
 
 | Collection | Dokument-ID | Felder (gekürzt) |
 |---|---|---|
-| `users` | Auth-UID | `displayName`, **`roles[]`**, `role`, `avatar`, `bio`, `skills[]`, `playableSongs[]`, `favoriteSongs[]` |
+| `users` | Auth-UID | `displayName`, **`roles[]`**, `role`, **`photo`**, `avatar`, `bio`, `skills[]`, `playableSongs[]`, `favoriteSongs[]` |
 | `sessions` | auto | `title`, `date`, `time`, `location`, `leadId`, `leadName`, `setlist[]`, `attendance{uid:…}`, `status` |
 | `songs` | auto | `title`, `artist`, `genre`, `status`, `votes[]`, `roleAssignments[]`, `structureNotes`, `youtubeLink`, `spotifyLink`, **`key`**, **`capo`**, **`bpm`**, **`sheet`**, **`lyricNotes[]`** |
 | `comments` | auto | `docId` (= Song-ID), `userId`, `text`, `createdAt` |
@@ -176,6 +176,35 @@ Eine Person kann mehrere haben (singen *und* Ukulele). Die Liste steht in
 alte Datensaetze nur dieses Feld kennen. Gelesen wird ausschliesslich ueber
 `rolesOf(p)` und `mainRole(p)` aus `helpers.js` — nie direkt `p.role`.
 `mainRole` faerbt die Initialen.
+
+### Profilfoto
+
+`users.photo` ist ein kleines JPEG als Data-URL — **kein** Firebase Storage.
+Der Bucket steht zwar in der Config, aber Storage bräuchte ein zusätzliches
+SDK, eigene Sicherheitsregeln im Console-Projekt und beim neuen
+Bucket-Format unter Umständen ein Abrechnungskonto. Für eine Handvoll Leute
+ist das Bild im Nutzerdokument einfacher, und es läuft nebenbei durch den
+Offline-Cache mit.
+
+`fileToAvatar()` in `helpers.js` schneidet quadratisch aus der Mitte,
+skaliert auf 192px (reicht für 56px Anzeige auch auf Retina) und senkt die
+JPEG-Qualität, bis die Data-URL unter 60 KB liegt. Ein 920-KB-Foto landet
+so bei rund 9 KB. `createImageBitmap(…, {imageOrientation:'from-image'})`
+berücksichtigt die EXIF-Drehung von Handyfotos; ohne das liegen sie quer.
+
+Zwei Grenzen, die man im Blick behalten muss:
+
+* `app.js` abonniert die **ganze** `users`-Collection — jedes Foto wird bei
+  jedem Start mitgeladen. Bei fünf Leuten sind das ein paar Dutzend KB.
+* Ein Firestore-Dokument darf 1 MiB groß werden.
+
+Bei einer großen Band wäre Storage der richtige Weg. Der Umbau bliebe klein:
+`fileToAvatar` tauschen und `photo` eine URL sein lassen — die Anzeige über
+`Av` ändert sich nicht.
+
+Kommentare und Zusagen speichern nur einen Namensschnappschuss ohne Bild.
+Dort holt `photoOf(members, userId)` das aktuelle Foto aus der
+Mitgliederliste; so bleibt ein gewechseltes Foto überall aktuell.
 
 ### Offline und Installation
 

@@ -9,6 +9,9 @@ function ProfilePage({user,profile,setProfile,design,onDesignUpdate,bandName,set
   const[skillIn,setSkillIn]=useState('');
   const[addPS,setAddPS]=useState({title:'',artist:'',roles:[]});
   const[addFav,setAddFav]=useState({title:'',artist:''});
+  const fotoRef=useRef(null);
+  const[fotoFehler,setFotoFehler]=useState('');
+  const[fotoLaedt,setFotoLaedt]=useState(false);
 
   // Chrome legt das Installations-Angebot frueh auf window.__installPrompt
   // (siehe index.html). Hier nur abholen und auf Aenderungen hoeren.
@@ -37,11 +40,22 @@ function ProfilePage({user,profile,setProfile,design,onDesignUpdate,bandName,set
     const roles=(form.roles||[]).length?form.roles:['Sonstiges'];
     // `role` wird weiter geschrieben: Kommentare, Zusagen und alte
     // Datensaetze lesen das Einzelfeld. Erste Rolle ist die Hauptrolle.
-    const patch={displayName:form.displayName,roles,role:roles[0],bio:form.bio,skills:form.skills||[]};
+    const patch={displayName:form.displayName,roles,role:roles[0],bio:form.bio,
+      skills:form.skills||[],photo:form.photo||null};
     await db.collection('users').doc(user.uid).update(patch);
     setProfile(p=>({...p,...patch}));
     setEdit(false);setSaving(false);
   };
+  const waehleFoto=async e=>{
+    const f=e.target.files?.[0];
+    e.target.value='';                       // dieselbe Datei nochmal waehlbar
+    if(!f) return;
+    setFotoFehler(''); setFotoLaedt(true);
+    try{ const url=await fileToAvatar(f); setForm(p=>({...p,photo:url})); }
+    catch(err){ setFotoFehler(err.message||'Bild konnte nicht gelesen werden.'); }
+    setFotoLaedt(false);
+  };
+
   const addSkill=()=>{if(!skillIn.trim())return;setForm(p=>({...p,skills:[...(p.skills||[]),skillIn.trim()]}));setSkillIn('');};
   const rmSkill=i=>setForm(p=>({...p,skills:p.skills.filter((_,j)=>j!==i)}));
   const addPlayable=async()=>{if(!addPS.title||!addPS.artist)return;const l=[...(profile.playableSongs||[]),{id:uid(),...addPS}];await db.collection('users').doc(user.uid).update({playableSongs:l});setProfile(p=>({...p,playableSongs:l}));setAddPS({title:'',artist:'',roles:[]});};
@@ -58,7 +72,7 @@ function ProfilePage({user,profile,setProfile,design,onDesignUpdate,bandName,set
     {/* Kopf */}
     <div className="px-4 md:px-8 pt-6 md:pt-8 pb-5 border-b border-line-2">
       <div className="flex items-center gap-4">
-        <Av name={profile.displayName} role={mainRole(profile)} size={56}/>
+        <Av name={profile.displayName} role={mainRole(profile)} photo={profile.photo} size={56}/>
         <div className="flex-1 min-w-0">
           <div className="disp text-[24px] md:text-[28px] truncate">{profile.displayName}</div>
           <div className="flex gap-x-2 gap-y-1 flex-wrap mt-1">
@@ -82,6 +96,24 @@ function ProfilePage({user,profile,setProfile,design,onDesignUpdate,bandName,set
 
     {ptab==='info'&&(edit
       ? <div className="max-w-[620px] flex flex-col gap-4">
+          <Fld label="Foto" hint="Wird quadratisch zugeschnitten und auf 192px verkleinert.">
+            <div className="flex items-center gap-4">
+              <Av name={form.displayName} role={(form.roles||[])[0]} photo={form.photo} size={64}/>
+              <div className="flex flex-col gap-2 min-w-0">
+                <input ref={fotoRef} type="file" accept="image/*" onChange={waehleFoto} className="hidden"/>
+                <div className="flex gap-2 flex-wrap">
+                  <Btn onClick={()=>fotoRef.current?.click()} size="sm" disabled={fotoLaedt}>
+                    {fotoLaedt?'Wird gelesen …':form.photo?'Anderes Foto':'Foto wählen'}
+                  </Btn>
+                  {form.photo&&<Btn onClick={()=>{setForm(p=>({...p,photo:null}));setFotoFehler('');}}
+                    size="sm" variant="danger">Entfernen</Btn>}
+                </div>
+                {fotoFehler
+                  ? <span className="text-[11px] text-danger">{fotoFehler}</span>
+                  : form.photo&&<span className="lab text-ink-3">{Math.round(form.photo.length/1024)} KB</span>}
+              </div>
+            </div>
+          </Fld>
           <Fld label="Name"><Inp value={form.displayName} onChange={e=>setForm(p=>({...p,displayName:e.target.value}))}/></Fld>
           <Fld label={`Rollen · ${(form.roles||[]).length}`}
             hint="Mehrere möglich — singen und Ukulele zum Beispiel. Die erste färbt deine Initialen.">
@@ -108,7 +140,7 @@ function ProfilePage({user,profile,setProfile,design,onDesignUpdate,bandName,set
             </div>
           </Fld>
           <div className="flex gap-2 justify-end">
-            <Btn onClick={()=>{setEdit(false);setForm({...profile});}} variant="quiet">Abbrechen</Btn>
+            <Btn onClick={()=>{setEdit(false);setForm({...profile,roles:rolesOf(profile)});setFotoFehler('');}} variant="quiet">Abbrechen</Btn>
             <Btn onClick={save} disabled={saving} variant="accent">{saving?'Speichern …':'Änderungen speichern'}</Btn>
           </div>
         </div>

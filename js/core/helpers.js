@@ -56,6 +56,58 @@ const daysSince = ts => {
   return isNaN(d) ? null : Math.floor((Date.now()-d.getTime())/86400000);
 };
 
+// ── Profilfoto ──────────────────────────────────────
+// Quadratisch zuschneiden, verkleinern, als Data-URL in `users.photo`.
+//
+// Bewusst KEIN Firebase Storage: das braucht ein zusaetzliches SDK,
+// eigene Sicherheitsregeln im Console-Projekt und beim neuen
+// Bucket-Format unter Umstaenden ein Abrechnungskonto. Fuer eine
+// Handvoll Leute ist ein kleines JPEG im Nutzerdokument einfacher, und
+// es laeuft nebenbei durch den Offline-Cache mit.
+//
+// Zwei Grenzen im Blick behalten:
+//   • app.js laedt ALLE Nutzer auf einmal — die Bilder muessen klein sein.
+//   • Ein Firestore-Dokument darf 1 MiB gross werden.
+// Bei einer grossen Band waere Storage der richtige Weg; dann tauscht
+// man hier die Funktion und laesst `photo` eine URL sein.
+const AVATAR_PX  = 192;            // reicht fuer 56px Anzeige auch auf Retina
+const AVATAR_MAX = 60 * 1024;      // Data-URL-Laenge
+
+const fileToAvatar = async file => {
+  if(!file) throw new Error('Keine Datei gewählt.');
+  if(!/^image\//.test(file.type)) throw new Error('Das ist kein Bild.');
+
+  let quelle;
+  try{
+    // beruecksichtigt die EXIF-Drehung von Handyfotos
+    quelle = await createImageBitmap(file,{imageOrientation:'from-image'});
+  }catch{
+    quelle = await new Promise((ok,fail)=>{
+      const fr=new FileReader();
+      fr.onerror=()=>fail(new Error('Datei nicht lesbar.'));
+      fr.onload=()=>{ const i=new Image();
+        i.onerror=()=>fail(new Error('Bild nicht lesbar.'));
+        i.onload=()=>ok(i); i.src=fr.result; };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  const w=quelle.width, h=quelle.height, s=Math.min(w,h);
+  const c=document.createElement('canvas');
+  c.width=c.height=AVATAR_PX;
+  c.getContext('2d').drawImage(quelle,(w-s)/2,(h-s)/2,s,s,0,0,AVATAR_PX,AVATAR_PX);
+  quelle.close?.();
+
+  let q=0.82, url=c.toDataURL('image/jpeg',q);
+  while(url.length>AVATAR_MAX && q>0.4){ q-=0.12; url=c.toDataURL('image/jpeg',q); }
+  if(url.length>AVATAR_MAX) throw new Error('Bild lässt sich nicht klein genug rechnen.');
+  return url;
+};
+
+// Kommentare und Zusagen speichern nur einen Namensschnappschuss, kein
+// Bild — das Foto kommt aus der Mitgliederliste.
+const photoOf = (members,userId) => (members||[]).find(m=>m.id===userId)?.photo || null;
+
 // Rollen: seit dem Mehrfach-Umbau steht die Liste in `roles`, das alte
 // Einzelfeld `role` bleibt als erste Rolle bestehen. Alte Datensaetze haben
 // nur `role`, Sessions und Kommentare speichern weiterhin eine einzelne —

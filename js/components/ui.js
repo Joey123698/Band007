@@ -70,9 +70,13 @@ function Fld({label,children,hint}){
   </div>;
 }
 
-// Initialen statt Emoji. `name` ist die Quelle, `role` faerbt den Kreis.
-// (Das Feld users.avatar wird nicht mehr gelesen, aber auch nicht geloescht.)
-function Av({name,role,size=32,color,style={}}){
+// Foto, wenn eins hinterlegt ist (`users.photo`), sonst Initialen.
+// `role` faerbt den Kreis. Das alte Feld users.avatar wird weiterhin
+// nicht gelesen, aber auch nicht geloescht.
+function Av({name,role,size=32,color,photo,style={}}){
+  if(photo) return <img src={photo} alt={name||''} loading="lazy"
+    className="rounded-pill shrink-0 object-cover"
+    style={{width:size,height:size,...style}}/>;
   const c = color||ROLE_COLORS[role]||'#8E8A93';
   return <div className="rounded-pill flex items-center justify-center shrink-0 font-bold uppercase"
     style={{width:size,height:size,fontSize:Math.max(8,Math.round(size*.34)),

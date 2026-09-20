@@ -466,7 +466,7 @@ function SchedulePage({user,profile,allSessions,allSongs,members,onPerform}){
             ? <div className="text-[12px] text-ink-3 mb-3">Niemand hat diese Zeit eingetragen.</div>
             : <div className="flex gap-1.5 flex-wrap mb-3">
                 {selFree.map(m=><span key={m.id} className="flex items-center gap-2 pl-1 pr-2.5 py-1 border border-line-2">
-                  <Av name={m.displayName} role={mainRole(m)} size={21}/>
+                  <Av name={m.displayName} role={mainRole(m)} photo={m.photo} size={21}/>
                   <span className="text-[11.5px] text-ink-2 font-semibold">{m.displayName}</span>
                 </span>)}
               </div>}

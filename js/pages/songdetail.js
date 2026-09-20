@@ -201,7 +201,7 @@ function SongDetailPage({song,user,profile,members,onBack,onPerform}){
                   return <>
                     {mine.map(n=>
                       <div key={n.id} className="flex gap-2.5 items-start px-3 py-2 mb-3 -mt-1 rail-a">
-                        <Av name={n.userName} role={n.userBandRole} size={19}/>
+                        <Av name={n.userName} role={n.userBandRole} photo={photoOf(members,n.userId)} size={19}/>
                         <div className="flex-1 min-w-0 text-[11.5px] text-ink-2 leading-[1.45]">
                           {n.text} <span className="text-ink-3">{noteDate(n.createdAt)}</span>
                         </div>
@@ -334,7 +334,7 @@ function SongDetailPage({song,user,profile,members,onBack,onPerform}){
               <div className="mt-6"><SectionLabel color="var(--t3)">Rollenverteilung</SectionLabel></div>
               {(song.roleAssignments||[]).map((r,i)=>
                 <div key={i} className="flex items-center gap-2.5 py-2 border-b border-line">
-                  <Av name={r.userName} role={r.userBandRole} size={24}/>
+                  <Av name={r.userName} role={r.userBandRole} photo={photoOf(members,r.userId)} size={24}/>
                   <span className="text-[12px] flex-1 min-w-0 truncate">{r.userName}</span>
                   <span className="text-[11px] text-accent truncate">{r.songRole}</span>
                   {r.userId===user.uid&&<button onClick={removeMyRole} title="Entfernen"

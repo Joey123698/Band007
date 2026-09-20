@@ -22,7 +22,7 @@ function CommentsThread({collection,docId,user,profile,members}){
   const del=async id=>db.collection(collection).doc(id).delete();
   return <div>
     {comments.map(c=><div key={c.id} className="flex gap-2.5 mb-3 items-start group">
-      <Av name={c.userName} role={c.userBandRole} size={26}/>
+      <Av name={c.userName} role={c.userBandRole} photo={photoOf(members,c.userId)} size={26}/>
       <div className="flex-1 min-w-0">
         <div className="flex gap-2 items-baseline mb-1 flex-wrap">
           <span className="text-[11.5px] font-semibold text-ink">{c.userName}</span>

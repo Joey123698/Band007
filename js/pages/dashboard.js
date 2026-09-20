@@ -97,7 +97,7 @@ function DashboardPage({user,profile,allSessions,allSongs,members,bandName,myAva
         <div className="border-t border-line">
           {members.map(m=>
             <div key={m.id} className="flex items-center gap-3 py-3 border-b border-line">
-              <Av name={m.displayName} role={mainRole(m)} size={34}/>
+              <Av name={m.displayName} role={mainRole(m)} photo={m.photo} size={34}/>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-[13px] truncate">{m.displayName}</div>
                 <div className="flex gap-x-1.5 flex-wrap mt-px">

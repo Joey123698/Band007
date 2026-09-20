@@ -6,11 +6,13 @@ function AttendanceSection({session,user,profile,members}){
   const[showDecline,setShowDecline]=useState(false);
   const att=session.attendance||{};
   const mine=att[user.uid];
-  const confirmed=Object.values(att).filter(v=>v.status==='confirmed');
-  const declined=Object.values(att).filter(v=>v.status==='declined');
+  // entries statt values: die uid wird zum Nachschlagen des Fotos gebraucht
+  const byStatus=st=>Object.entries(att).filter(([,v])=>v.status===st).map(([id,v])=>({...v,id}));
+  const confirmed=byStatus('confirmed');
+  const declined=byStatus('declined');
   // Wer gar nichts gesagt hat. Ohne diese Gruppe sieht eine Probe mit
   // einer Zusage genauso aus wie eine, bei der zwei Leute abgesagt haben.
-  const open=(members||[]).filter(m=>!att[m.id]).map(m=>({name:m.displayName,role:mainRole(m)}));
+  const open=(members||[]).filter(m=>!att[m.id]).map(m=>({id:m.id,name:m.displayName,role:mainRole(m)}));
   const set=async(status)=>{
     await db.collection('sessions').doc(session.id).update({[`attendance.${user.uid}`]:{status,reason:status==='declined'?reason:'',name:profile.displayName,role:mainRole(profile),avatar:profile.avatar||'',updatedAt:new Date().toISOString()}});
     setShowDecline(false); setReason('');
@@ -64,7 +66,7 @@ function AttendanceSection({session,user,profile,members}){
             ? <div className="text-[11px] text-ink-3">{label==='Offen'?'Alle haben geantwortet':'Noch niemand'}</div>
             : <div className="flex flex-col gap-1.5">{arr.map((m,i)=>
                 <div key={i} className="flex gap-2 items-center">
-                  <Av name={m.name} role={m.role} size={20}/>
+                  <Av name={m.name} role={m.role} photo={photoOf(members,m.id)} size={20}/>
                   <span className="text-[11.5px] text-ink truncate">{m.name}</span>
                   {m.reason&&<span className="text-[10.5px] text-ink-3 truncate">— {m.reason}</span>}
                 </div>)}
