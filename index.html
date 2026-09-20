@@ -12,6 +12,15 @@
   <!-- Archivo = Display, IBM Plex Sans = Text, IBM Plex Mono = Zahlen/Akkorde -->
   <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+  <!-- ═══ Als App installierbar (Android/Chrome + iOS) ═══ -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <!-- iOS kennt kein Manifest-display; diese beiden ersetzen es. -->
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="BandSync"/>
+
 <!--
   ═══════════════════════════════════════════════════════════════════
    APP-DATEIEN — die Reihenfolge ist wichtig!
@@ -27,7 +36,7 @@
   ═══════════════════════════════════════════════════════════════════
 -->
 <script>
-  const APP_V = 2;
+  const APP_V = 4;
   const APP_FILES = [
     // 1. Kern / Grundlagen
     'js/core/react-hooks.js',
@@ -82,6 +91,30 @@
 <script>
   APP_FILES.forEach(function(p){
     document.write('<script type="text/babel" src="' + p + '?v=' + APP_V + '"><\/script>');
+  });
+</script>
+<!--
+  Service Worker: macht die Seite installierbar und offline lesbar.
+  Die Adresse traegt ?v=APP_V — dadurch sieht der Browser bei jedem
+  Deploy ein neues Skript, installiert es und wirft den alten Cache weg.
+-->
+<script>
+  if ('serviceWorker' in navigator) {
+    addEventListener('load', function(){
+      navigator.serviceWorker.register('sw.js?v=' + APP_V).catch(function(){});
+    });
+  }
+  // Chrome feuert das lange bevor die Profilseite existiert, also hier
+  // auffangen und dort abholen (siehe ProfilePage, Reiter „Band“).
+  window.__installPrompt = null;
+  addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault();
+    window.__installPrompt = e;
+    dispatchEvent(new Event('bandsync:installready'));
+  });
+  addEventListener('appinstalled', function(){
+    window.__installPrompt = null;
+    dispatchEvent(new Event('bandsync:installready'));
   });
 </script>
 </body>

@@ -12,7 +12,7 @@
 //    Ein Tippen waehlt das Fenster aus: wer kann, und die Probe
 //    laesst sich direkt daraus ansetzen.
 // ════════════════════════════════════════════════════
-const STALE_DAYS = 10;
+// STALE_DAYS steht in js/core/constants.js — das Dashboard braucht es auch.
 
 function SchedulePage({user,profile,allSessions,allSongs,members,onPerform}){
   const[weekOff,setWeekOff]=useState(0);
@@ -312,7 +312,7 @@ function SchedulePage({user,profile,allSessions,allSongs,members,onPerform}){
             ? <div className="text-[12px] text-ink-3 mb-3">Niemand hat diese Zeit eingetragen.</div>
             : <div className="flex gap-1.5 flex-wrap mb-3">
                 {selFree.map(m=><span key={m.id} className="flex items-center gap-2 pl-1 pr-2.5 py-1 border border-line-2">
-                  <Av name={m.displayName} role={m.role} size={21}/>
+                  <Av name={m.displayName} role={mainRole(m)} size={21}/>
                   <span className="text-[11.5px] text-ink-2 font-semibold">{m.displayName}</span>
                 </span>)}
               </div>}
@@ -397,7 +397,7 @@ function SchedulePage({user,profile,allSessions,allSongs,members,onPerform}){
             <Btn onClick={addLoc} title="Ort anlegen"><Ic name="plus" size={15} sw={2.2}/></Btn>
           </div>
         </Fld>
-        <Fld label="Verantwortlich"><Sel value={sf.leadId} onChange={e=>setSF(f=>({...f,leadId:e.target.value}))} options={[{value:'',label:'— Später festlegen —'},...members.map(m=>({value:m.id,label:`${m.displayName} — ${m.role}`}))]}/></Fld>
+        <Fld label="Verantwortlich"><Sel value={sf.leadId} onChange={e=>setSF(f=>({...f,leadId:e.target.value}))} options={[{value:'',label:'— Später festlegen —'},...members.map(m=>({value:m.id,label:`${m.displayName} — ${mainRole(m)}`}))]}/></Fld>
         <Fld label={`Setliste · ${sf.setlist.length}`}>
           {practiceSongs.length===0
             ? <div className="text-[12px] text-ink-3 py-2">Noch keine Songs. Erst im Repertoire anlegen.</div>
@@ -431,6 +431,7 @@ function SessionCard({session:s,user,profile,members,practiceSongs,editId,setEdi
   const[ef,setEF]=useState({title:s.title||'',date:s.date||'',time:s.time||'',location:s.location||'',leadId:s.leadId||'',notes:s.notes||''});
   const isEdit=editId===s.id, showC=showCommentsId===s.id;
   const att=s.attendance||{}, confirmed=Object.values(att).filter(v=>v.status==='confirmed').length;
+  const offen=members.filter(m=>!att[m.id]).length;
 
   return <Card accent={!past&&!isEdit} className={past?'opacity-60':''}>
     {isEdit?<div className="flex flex-col gap-3">
@@ -465,7 +466,15 @@ function SessionCard({session:s,user,profile,members,practiceSongs,editId,setEdi
         <div><div className="lab text-ink-3">Datum</div><div className="text-[12.5px] mt-1">{dfmt(s.date)}</div></div>
         <div><div className="lab text-ink-3">Zeit</div><div className="num text-[12.5px] mt-1">{s.time||'—'}</div></div>
         <div className="min-w-0"><div className="lab text-ink-3">Ort</div><div className="text-[12.5px] mt-1 truncate">{s.location||'—'}</div></div>
-        <div className="min-w-0"><div className="lab text-ink-3">Zusagen</div><div className="num text-[12.5px] mt-1" style={{color:confirmed?'var(--ok)':'var(--t3)'}}>{confirmed}</div></div>
+        <div className="min-w-0">
+          <div className="lab text-ink-3">Zusagen</div>
+          <div className="num text-[12.5px] mt-1">
+            <span style={{color:confirmed?'var(--ok)':'var(--t3)'}}>{confirmed}</span>
+            {/* Ohne die offenen Antworten sieht „1 Zusage“ bei drei Leuten
+                genauso aus, egal ob zwei abgesagt oder nur geschwiegen haben. */}
+            {offen>0&&<span className="text-ink-3"> · {offen} offen</span>}
+          </div>
+        </div>
       </div>
 
       {s.leadName&&<div className="mt-3 text-[12px]"><span className="text-ink-3">Verantwortlich </span><span className="text-accent font-semibold">{s.leadName}</span></div>}
@@ -473,7 +482,7 @@ function SessionCard({session:s,user,profile,members,practiceSongs,editId,setEdi
       {s.setlist?.length>0&&<div className="mt-4 pt-3 border-t border-line">
         <div className="flex items-baseline justify-between gap-3 mb-2">
           <span className="lab text-ink-3">Setliste · {s.setlist.length}</span>
-          {onPerform&&<button onClick={()=>onPerform(s.setlist.map(x=>x.songId))}
+          {onPerform&&<button onClick={()=>onPerform(s.id)}
             className="lab text-accent cursor-pointer shrink-0 flex items-center gap-1.5">
             <Ic name="play" size={11} fill/> Probe starten
           </button>}

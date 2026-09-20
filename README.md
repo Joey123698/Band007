@@ -39,6 +39,10 @@ js/pages/
   profile.js
 
 js/app.js                     App() + ReactDOM-Render (muss zuletzt kommen)
+
+manifest.webmanifest          PWA-Manifest (installierbar auf Android/iOS)
+sw.js                         Service Worker (offline; Netz-zuerst fuer HTML)
+icons/                        192/512/maskable + apple-touch-icon
 ```
 
 ## Wichtig beim Bearbeiten

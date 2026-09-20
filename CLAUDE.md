@@ -27,6 +27,11 @@ Pages**, **kein Build-Schritt**. JSX wird im Browser von Babel-Standalone
    der Browser die neue `index.html`, aber die **alten** `.js`/`.css` unter
    denselben Namen — das sieht aus, als wäre der Deploy nicht angekommen.
    Ist einmal passiert; nicht wieder drauf reinfallen.
+   Seit dem Service Worker hängt daran noch mehr: `APP_V` benennt den
+   Cache (`bandsync-<v>`) und steht in der Adresse von `sw.js`. Hochzählen
+   installiert den Worker neu und löscht den alten Cache — vergisst man es,
+   bleibt die Band auf der alten Fassung sitzen, bis jemand die Seitendaten
+   löscht.
 4. **Nicht committen oder pushen, wenn der Nutzer nicht darum bittet.**
 5. **Die `border-width:0;border-style:solid`-Zeile in `css/styles.css` bleibt.**
    Ohne sie zeichnet Tailwinds `border` keinen Rahmen (preflight ist aus).
@@ -107,6 +112,15 @@ Danach `js_old/` und die Harness-Dateien wieder löschen.
   deutsche Zeilen wie „Am Himmel …“ an, als Akkorde durchzugehen.
 * Eine Probe aus einer Rasterzelle setzt **keine** Zusagen. Verfügbarkeit ist
   nicht Teilnahme; das bestätigt jede Person selbst.
+* Rollen sind **mehrere** (`users.roles[]`). `users.role` bleibt als erste
+  Rolle bestehen, weil Kommentare und Zusagen eine einzelne speichern. Immer
+  über `rolesOf()` / `mainRole()` lesen, nie direkt `profile.role`.
+* Der Zustand steht im **Hash** (`parseRoute()` / `go()` in `helpers.js`),
+  damit die Zurück-Taste funktioniert und Links auf einen Song teilbar sind.
+  Navigation also immer über `go('#/…')`, nicht über `setState`.
+* Wo etwas fehlt, muss man es **sehen**: fehlende Probenzeiten und offene
+  Zusagen werden ausdrücklich angezeigt. Bei drei Leuten ist „wer hat noch
+  nicht geantwortet“ die eigentliche Frage — nicht die Zahl der Zusagen.
 * Design-Einstellungen liegen in `localStorage` (`bandsync-design-v4`),
   nicht in Firestore — also pro Gerät. Den Schlüssel hochzählen, wenn ein
   Redesign alte Theme- oder Font-Namen entfernt.

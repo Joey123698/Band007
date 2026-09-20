@@ -3,9 +3,15 @@
 // ════════════════════════════════════════════════════
 const DAYS_DE    = ['Mo','Di','Mi','Do','Fr','Sa','So'];
 const HOURS      = [8,9,10,11,12,13,14,15,16,17,18,19,20,21];
-const BAND_ROLES = ['Lead-Gesang','Background-Gesang','Lead-Gitarre','Rhythmusgitarre','Bass','Schlagzeug','Keyboard','Violine','Sonstiges'];
+// Ukulele und Cajón gehoerten von Anfang an hierher — die Band spielt beides.
+// Ohne sie landeten die Leute bei „Sonstiges“.
+const BAND_ROLES = ['Lead-Gesang','Background-Gesang','Lead-Gitarre','Rhythmusgitarre','Ukulele','Bass','Schlagzeug','Cajón','Percussion','Keyboard','Violine','Sonstiges'];
 const SONG_ROLES = ['Lead-Gesang','Hintergrundgesang','Gitarren-Solo','Rhythmusgitarre','Bassline','Schlagzeug','Keyboard','Mix/Technik'];
 const GENRES     = ['Pop','Rock','Indie','Jazz','R&B/Soul','Folk','Acoustic','Ballade','Alternative','K-Pop','Sonstiges'];
+
+// Ab wie vielen Tagen gelten eingetragene Probenzeiten als veraltet.
+// Wird im Probeplan und auf dem Dashboard gebraucht.
+const STALE_DAYS = 10;
 
 // Status. `bar` ist der 3px-Streifen links in den Listen, `color` die
 // Textfarbe, `bg` der Hintergrund kleiner Plaketten. Feste Hex-Werte:
@@ -21,7 +27,8 @@ const STATUS_MAP = {
 // eine Mitgliederliste soll ruhig bleiben, nicht bunt.
 const ROLE_COLORS = {
   'Lead-Gesang':'#D08A6A','Background-Gesang':'#B58A72','Lead-Gitarre':'#C9A45C',
-  'Rhythmusgitarre':'#A89060','Bass':'#6E90C4','Schlagzeug':'#8B7FA8',
+  'Rhythmusgitarre':'#A89060','Ukulele':'#C9A45C','Bass':'#6E90C4',
+  'Schlagzeug':'#8B7FA8','Cajón':'#8B7FA8','Percussion':'#9A8AA8',
   'Keyboard':'#6FA96B','Violine':'#C2606A','Sonstiges':'#8E8A93',
 };
 

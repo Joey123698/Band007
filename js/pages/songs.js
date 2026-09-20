@@ -6,8 +6,10 @@
 //  stehen hier als eigener Abschnitt bzw. Filter.
 //  Ein Tippen oeffnet das Blatt (js/pages/songdetail.js).
 // ════════════════════════════════════════════════════
-function SongsPage({user,profile,allSongs,members,onOpen}){
-  const[filter,setFilter]=useState('all');
+function SongsPage({user,profile,allSongs,members,onOpen,initialFilter}){
+  // #/ideen kommt mit vorgewaehltem Filter herein (Link aus dem Dashboard).
+  const[filter,setFilter]=useState(initialFilter||'all');
+  useEffect(()=>{ if(initialFilter) setFilter(initialFilter); },[initialFilter]);
   const[q,setQ]=useState('');
   const[addForm,setAddForm]=useState(false);
   const[nf,setNF]=useState({title:'',artist:'',genre:'',status:'practicing',key:'',youtubeLink:'',spotifyLink:''});

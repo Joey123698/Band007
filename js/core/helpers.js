@@ -10,6 +10,33 @@ const dfmt    = d => new Date(d).toLocaleDateString('de-DE',{weekday:'short',day
 const hasConfig = () => FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('PASTE_');
 const extractYTId = url => { const m=(url||'').match(/(?:v=|youtu\.be\/|embed\/)([a-zA-Z0-9_-]{11})/); return m?m[1]:null; };
 
+// ── Routing ─────────────────────────────────────────
+// Hash-Routing, weil GitHub Pages keine Server-Regeln kennt (ein echter
+// Pfad wuerde beim Neuladen 404 geben). Dadurch funktioniert die
+// Zurueck-Taste, Links auf einen einzelnen Song lassen sich verschicken,
+// und F5 landet wieder an derselben Stelle.
+//
+//   #/                          Dashboard
+//   #/probeplan                 Probeplan
+//   #/songs                     Repertoire
+//   #/songs/<id>                das Blatt
+//   #/songs/<id>/singen         Singen-Modus, ein Song
+//   #/ideen                     Repertoire, Filter auf Ideen
+//   #/probe/<id>/singen         Singen-Modus, Setliste einer Probe
+//   #/profil                    Profil
+const parseRoute = () => {
+  const p = String(location.hash||'').replace(/^#\/?/,'').split('/').filter(Boolean);
+  if(!p.length)            return {tab:'dashboard'};
+  if(p[0]==='probeplan')   return {tab:'schedule'};
+  if(p[0]==='profil')      return {tab:'profile'};
+  if(p[0]==='ideen')       return {tab:'songs', filter:'suggested'};
+  if(p[0]==='songs')       return {tab:'songs', songId:p[1]||null, perf:p[2]==='singen'};
+  if(p[0]==='probe'&&p[2]==='singen') return {tab:'schedule', sessionPerf:p[1]};
+  return {tab:'dashboard'};
+};
+const ROUTE_OF_TAB = {dashboard:'#/', schedule:'#/probeplan', songs:'#/songs', profile:'#/profil'};
+const go = path => { location.hash = path; };
+
 // Verfuegbarkeit kennt zwei Schluesselarten:
 //   slots["2_19"]            Standardwoche — Wochentag 0–6 plus Stunde
 //   dates["2026-09-16_19"]   diese eine Woche, true = kann, false = kann nicht
@@ -28,6 +55,13 @@ const daysSince = ts => {
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   return isNaN(d) ? null : Math.floor((Date.now()-d.getTime())/86400000);
 };
+
+// Rollen: seit dem Mehrfach-Umbau steht die Liste in `roles`, das alte
+// Einzelfeld `role` bleibt als erste Rolle bestehen. Alte Datensaetze haben
+// nur `role`, Sessions und Kommentare speichern weiterhin eine einzelne —
+// deshalb liest alles ueber diese beiden Helfer.
+const rolesOf = p => (p?.roles?.length ? p.roles : (p?.role ? [p.role] : []));
+const mainRole = p => rolesOf(p)[0] || '';
 
 // "Anh" -> AN, "Thao Hien" -> TH. Ersetzt die Emoji-Avatare des alten
 // Designs; das Feld `users.avatar` bleibt davon unberuehrt.

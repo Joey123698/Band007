@@ -16,7 +16,7 @@ function CommentsThread({collection,docId,user,profile,members}){
   },[docId]);
   const send=async()=>{
     if(!text.trim())return; setLoading(true);
-    await db.collection(collection).add({docId,userId:user.uid,userName:profile.displayName,userBandRole:profile.role,avatar:profile.avatar||'🎵',text:text.trim(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    await db.collection(collection).add({docId,userId:user.uid,userName:profile.displayName,userBandRole:mainRole(profile),avatar:profile.avatar||'🎵',text:text.trim(),createdAt:firebase.firestore.FieldValue.serverTimestamp()});
     setText(''); setLoading(false);
   };
   const del=async id=>db.collection(collection).doc(id).delete();

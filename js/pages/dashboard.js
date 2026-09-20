@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════
 //  DASHBOARD
 // ════════════════════════════════════════════════════
-function DashboardPage({user,profile,allSessions,allSongs,members,bandName}){
+function DashboardPage({user,profile,allSessions,allSongs,members,bandName,myAvail}){
   const[showComments,setShowComments]=useState(false);
   const today=nowKey();
   const upcoming=allSessions.filter(s=>s.status==='upcoming'&&s.date>=today).sort((a,b)=>a.date.localeCompare(b.date))[0];
@@ -11,14 +11,49 @@ function DashboardPage({user,profile,allSessions,allSongs,members,bandName}){
     {l:'Bühnenreif', v:allSongs.filter(s=>s.status==='ready').length},
     {l:'Proben',     v:allSessions.filter(s=>s.status==='upcoming').length},
   ];
+
+  // ── Offen fuer dich ───────────────────────────────
+  // Das Dashboard hat bisher nur berichtet. Diese Liste beantwortet die
+  // Frage, wegen der man die Seite ueberhaupt aufmacht: muss ich was tun?
+  const keineZeiten = myAvail!=null
+    && !Object.keys(myAvail.slots||{}).length
+    && !Object.keys(myAvail.dates||{}).length;
+  const zeitenAlt = daysSince(myAvail?.updatedAt);
+  const keineAntwort = upcoming && !(upcoming.attendance||{})[user.uid];
+  const offeneIdeen = allSongs.filter(s=>s.status==='suggested'&&!(s.votes||[]).includes(user.uid));
+
+  const todo=[];
+  if(keineZeiten) todo.push({k:'z', text:'Du hast noch keine Probenzeiten eingetragen',
+    cta:'Eintragen', on:()=>go('#/probeplan')});
+  else if(zeitenAlt!=null&&zeitenAlt>=STALE_DAYS) todo.push({k:'za', text:`Deine Zeiten sind ${zeitenAlt} Tage alt`,
+    cta:'Prüfen', on:()=>go('#/probeplan')});
+  if(keineAntwort) todo.push({k:'a', text:`Probe am ${dfmt(upcoming.date)} — du hast noch nicht geantwortet`,
+    cta:'Antworten', on:()=>document.getElementById('naechste-probe')?.scrollIntoView({behavior:'smooth',block:'center'})});
+  if(offeneIdeen.length) todo.push({k:'i',
+    text:`${offeneIdeen.length} ${offeneIdeen.length===1?'Idee wartet':'Ideen warten'} auf deine Stimme`,
+    cta:'Ansehen', on:()=>go('#/ideen')});
+
   return <div>
     <DashboardHero bandName={bandName} profile={profile} stats={stats}/>
+
+    {todo.length>0&&<div className="px-4 md:px-8 py-4 border-b border-line-2">
+      <SectionLabel right={String(todo.length)}>Offen für dich</SectionLabel>
+      <div className="flex flex-col gap-1.5 max-w-[620px]">
+        {todo.map(t=>
+          <button key={t.k} onClick={t.on}
+            className="flex items-center gap-3 px-3 py-2.5 rail-a cursor-pointer text-left hover:bg-surf-2 transition-colors duration-100">
+            <span className="text-[12.5px] text-ink-2 flex-1">{t.text}</span>
+            <span className="lab text-accent shrink-0">{t.cta} →</span>
+          </button>)}
+      </div>
+    </div>}
+
     <MiniCalendar sessions={allSessions.filter(s=>s.status==='upcoming')}/>
 
     {/* Ab lg zwei Spalten: Probe links, Besetzung rechts */}
     <div className="px-4 md:px-8 py-6 grid grid-cols-1 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] gap-x-8 gap-y-8 items-start">
 
-      <section>
+      <section id="naechste-probe">
         <SectionLabel right={upcoming?dfmt(upcoming.date):null}>Nächste Probe</SectionLabel>
         {!upcoming
           ? <Empty title="Keine bevorstehende Probe" sub="Im Probeplan eine neue Probe ansetzen."/>
@@ -44,7 +79,7 @@ function DashboardPage({user,profile,allSessions,allSongs,members,bandName}){
                 </div>)}
             </div>}
 
-            <AttendanceSection session={upcoming} user={user} profile={profile}/>
+            <AttendanceSection session={upcoming} user={user} profile={profile} members={members}/>
 
             <div className="mt-4 border-t border-line pt-3">
               <button onClick={()=>setShowComments(v=>!v)}
@@ -62,10 +97,13 @@ function DashboardPage({user,profile,allSessions,allSongs,members,bandName}){
         <div className="border-t border-line">
           {members.map(m=>
             <div key={m.id} className="flex items-center gap-3 py-3 border-b border-line">
-              <Av name={m.displayName} role={m.role} size={34}/>
+              <Av name={m.displayName} role={mainRole(m)} size={34}/>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-[13px] truncate">{m.displayName}</div>
-                <div className="text-[11.5px] mt-px truncate" style={{color:ROLE_COLORS[m.role]||'var(--t2)'}}>{m.role}</div>
+                <div className="flex gap-x-1.5 flex-wrap mt-px">
+                  {rolesOf(m).map((r,i)=><span key={r} className="text-[11.5px]" style={{color:ROLE_COLORS[r]||'var(--t2)'}}>
+                    {i>0&&<span className="text-ink-3"> · </span>}{r}</span>)}
+                </div>
               </div>
               {m.id===user.uid&&<span className="lab text-accent">Ich</span>}
             </div>)}

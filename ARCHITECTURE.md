@@ -43,9 +43,33 @@ App()
                              + <SideNav/> (ab md) + <BottomNav/> (darunter)
 ```
 
-Im Songs-Reiter liegt eine zweite Ebene: ist `openSongId` gesetzt, rendert
-`<SongDetailPage/>` statt der Liste. Der Zustand haengt in `app.js`, ein
-Tabwechsel raeumt ihn weg.
+### Routing
+
+Der Zustand steht in der Adresszeile, nicht in React. Hash-Routing, weil
+GitHub Pages keine Server-Regeln kennt — ein echter Pfad gaebe beim Neuladen
+404. Damit tut die Zurueck-Taste das Erwartete (vorher verliess sie auf dem
+Telefon die ganze Seite), Links auf einen Song lassen sich verschicken, und
+F5 landet wieder an derselben Stelle.
+
+| Hash | Was |
+|---|---|
+| `#/` | Dashboard |
+| `#/probeplan` | Probeplan |
+| `#/songs` | Repertoire |
+| `#/songs/<id>` | das Blatt |
+| `#/songs/<id>/singen` | Singen-Modus, ein Song |
+| `#/ideen` | Repertoire mit Filter auf Ideen |
+| `#/probe/<id>/singen` | Singen-Modus, Setliste einer Probe |
+| `#/profil` | Profil |
+
+`parseRoute()` und `go()` stehen in `helpers.js`. Zwei Dinge bleiben bewusst
+**ausserhalb** der URL: welcher Song im Singen-Modus gerade dran ist (sonst
+fuellt jedes Weiterblaettern den Verlauf) und der Unterreiter im Profil.
+
+`app.js` merkt sich in einem Ref, ob der Singen-Modus aus der App heraus
+betreten wurde. Nur dann ist `history.back()` beim Schliessen richtig; bei
+einem geteilten Link fuehrt es sonst von der Seite weg — dann wird stattdessen
+eine Ebene hoeher navigiert.
 
 ---
 
@@ -131,7 +155,7 @@ Zwei Collections werden lokal in `schedule.js` abonniert
 
 | Collection | Dokument-ID | Felder (gekürzt) |
 |---|---|---|
-| `users` | Auth-UID | `displayName`, `role`, `avatar`, `bio`, `skills[]`, `playableSongs[]`, `favoriteSongs[]` |
+| `users` | Auth-UID | `displayName`, **`roles[]`**, `role`, `avatar`, `bio`, `skills[]`, `playableSongs[]`, `favoriteSongs[]` |
 | `sessions` | auto | `title`, `date`, `time`, `location`, `leadId`, `leadName`, `setlist[]`, `attendance{uid:…}`, `status` |
 | `songs` | auto | `title`, `artist`, `genre`, `status`, `votes[]`, `roleAssignments[]`, `structureNotes`, `youtubeLink`, `spotifyLink`, **`key`**, **`capo`**, **`bpm`**, **`sheet`**, **`lyricNotes[]`** |
 | `comments` | auto | `docId` (= Song-ID), `userId`, `text`, `createdAt` |
@@ -140,13 +164,64 @@ Zwei Collections werden lokal in `schedule.js` abonniert
 | `locations` | auto | `name` |
 | `settings` | `"main"` | `bandName` |
 
-Alle **fett** gesetzten Felder sind optional und kamen mit dem Blatt bzw.
-dem datumsbasierten Probeplan dazu. Fehlen sie, funktioniert der Datensatz
-unveraendert — deshalb war keine Migration noetig.
+Alle **fett** gesetzten Felder sind optional und kamen mit dem Blatt, dem
+datumsbasierten Probeplan bzw. den Mehrfachrollen dazu. Fehlen sie,
+funktioniert der Datensatz unveraendert — deshalb war keine Migration noetig.
 
-> `CommentsThread` filtert bewusst nur nach **einem** `where('docId','==',…)`
-> und sortiert clientseitig. Grund: so braucht Firestore keinen
-> Composite-Index. Nicht „optimieren“, sonst bricht es in Produktion.
+### Rollen
+
+Eine Person kann mehrere haben (singen *und* Ukulele). Die Liste steht in
+`roles[]`; `role` bleibt als **erste** Rolle erhalten, weil Kommentare
+(`userBandRole`) und Zusagen (`attendance.*.role`) eine einzelne speichern und
+alte Datensaetze nur dieses Feld kennen. Gelesen wird ausschliesslich ueber
+`rolesOf(p)` und `mainRole(p)` aus `helpers.js` — nie direkt `p.role`.
+`mainRole` faerbt die Initialen.
+
+### Offline und Installation
+
+Die App ist eine **PWA**: sie lässt sich auf Android/Chrome als eigenständige
+App installieren (eigenes Symbol, kein Browserrahmen) und bleibt im Proberaum
+ohne Netz benutzbar. Drei Teile greifen ineinander:
+
+| Datei | Rolle |
+|---|---|
+| `manifest.webmanifest` | Name, Symbole, `display: standalone`, Farben. Alle Pfade **relativ** (`./`), weil GitHub Pages unter `/Band007/` liefert. |
+| `sw.js` | Service Worker — legt HTML, CSS, JS und Schriften in einen Cache. |
+| `icons/` | 192er, 512er, ein `maskable` mit kleinerer Marke (Android schneidet bis zu 20 % weg) und ein Apple-Touch-Icon. |
+
+`initFB()` schaltet zusätzlich `enablePersistence({synchronizeTabs:true})` ein:
+Firestore hält seine Daten selbst offline vor, Schreibvorgänge gehen raus,
+sobald wieder Netz da ist. Fehlschläge werden verschluckt
+(`failed-precondition` bei mehreren Tabs ohne Tab-Sync, `unimplemented` in
+älteren Browsern) — die App läuft dann wie vorher nur online.
+
+**Der Service Worker ist die Stelle, an der ein Deploy hängenbleiben kann.**
+Deshalb zwei Regeln, die nicht aufgeweicht werden dürfen:
+
+1. **Seitenaufrufe gehen immer zuerst ans Netz.** Nur wenn das scheitert,
+   kommt die gespeicherte Fassung. So sieht die Band einen Push sofort.
+2. **Alles andere trägt `?v=APP_V`** und ist damit unveränderlich — dort ist
+   Cache-zuerst richtig. Beim Hochzählen von `APP_V` ändert sich auch die
+   Adresse von `sw.js`, der Cache heißt neu (`bandsync-<v>`) und der alte wird
+   beim Aktivieren gelöscht.
+
+Firestore, Auth und YouTube werden vom Worker **nicht angefasst** — sonst
+würden Live-Daten einfrieren. Gecacht wird nur die eigene Herkunft plus eine
+Allowlist statischer CDN-Hosts.
+
+Vorgeladen wird nur die Hülle; der Rest landet beim ersten Online-Besuch im
+Cache. Praktisch heißt das: einmal zu Hause öffnen, dann trägt es im
+Proberaum. Der allererste Aufruf auf einem Gerät braucht Netz.
+
+### Angemeldet bleiben
+
+`auth.setPersistence(LOCAL)` steht ausdrücklich in `initFB()`. Das ist im Web
+zwar die Voreinstellung, aber ohne die Zeile liest sich jede spätere
+Abmelde-Frage wie ein Zufall. Getragen wird das von IndexedDB/localStorage:
+löscht jemand die Browserdaten, ist die Anmeldung weg — das ist nicht zu
+umgehen. Eine installierte PWA teilt sich diesen Speicher mit Chrome; eine
+bloße Verknüpfung auf dem Startbildschirm tut das je nach System nicht, was
+der häufigste Grund für „ich muss mich ständig neu anmelden“ ist.
 
 ### Ideen und Songs
 

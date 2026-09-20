@@ -42,7 +42,7 @@ function SongDetailPage({song,user,profile,members,onBack,onPerform}){
   const addNote = async ()=>{
     if(!noteText.trim()) return;
     await upd({lyricNotes:[...notes,{id:uid(),line:noteLine,userId:user.uid,
-      userName:profile.displayName,userBandRole:profile.role,
+      userName:profile.displayName,userBandRole:mainRole(profile),
       text:noteText.trim(),createdAt:new Date().toISOString()}]});
     setNoteText(''); setNoteLine(null);
   };
@@ -62,7 +62,7 @@ function SongDetailPage({song,user,profile,members,onBack,onPerform}){
   const addMyRole = async ()=>{
     if(!addRole||mr) return;
     await upd({roleAssignments:[...(song.roleAssignments||[]),
-      {userId:user.uid,userName:profile.displayName,userBandRole:profile.role,songRole:addRole}]});
+      {userId:user.uid,userName:profile.displayName,userBandRole:mainRole(profile),songRole:addRole}]});
     setAddRole('');
   };
   const removeMyRole = async ()=>upd({roleAssignments:(song.roleAssignments||[]).filter(x=>x.userId!==user.uid)});

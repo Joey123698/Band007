@@ -10,8 +10,38 @@ function ProfilePage({user,profile,setProfile,design,onDesignUpdate,bandName,set
   const[addPS,setAddPS]=useState({title:'',artist:'',roles:[]});
   const[addFav,setAddFav]=useState({title:'',artist:''});
 
-  useEffect(()=>{if(profile)setForm({...profile});},[profile]);
-  const save=async()=>{setSaving(true);await db.collection('users').doc(user.uid).update({displayName:form.displayName,role:form.role,bio:form.bio,skills:form.skills||[]});setProfile(p=>({...p,...form}));setEdit(false);setSaving(false);};
+  // Chrome legt das Installations-Angebot frueh auf window.__installPrompt
+  // (siehe index.html). Hier nur abholen und auf Aenderungen hoeren.
+  const[canInstall,setCanInstall]=useState(!!(typeof window!=='undefined'&&window.__installPrompt));
+  useEffect(()=>{
+    const on=()=>setCanInstall(!!window.__installPrompt);
+    window.addEventListener('bandsync:installready',on);
+    return()=>window.removeEventListener('bandsync:installready',on);
+  },[]);
+  const istInstalliert = typeof window!=='undefined'
+    && window.matchMedia?.('(display-mode: standalone)').matches;
+  const install=async()=>{
+    const e=window.__installPrompt; if(!e) return;
+    window.__installPrompt=null; setCanInstall(false);
+    try{ e.prompt(); await e.userChoice; }catch{}
+  };
+
+  useEffect(()=>{if(profile)setForm({...profile,roles:rolesOf(profile)});},[profile]);
+
+  const toggleRole=r=>setForm(p=>{
+    const has=(p.roles||[]).includes(r);
+    return {...p, roles: has ? p.roles.filter(x=>x!==r) : [...(p.roles||[]),r]};
+  });
+  const save=async()=>{
+    setSaving(true);
+    const roles=(form.roles||[]).length?form.roles:['Sonstiges'];
+    // `role` wird weiter geschrieben: Kommentare, Zusagen und alte
+    // Datensaetze lesen das Einzelfeld. Erste Rolle ist die Hauptrolle.
+    const patch={displayName:form.displayName,roles,role:roles[0],bio:form.bio,skills:form.skills||[]};
+    await db.collection('users').doc(user.uid).update(patch);
+    setProfile(p=>({...p,...patch}));
+    setEdit(false);setSaving(false);
+  };
   const addSkill=()=>{if(!skillIn.trim())return;setForm(p=>({...p,skills:[...(p.skills||[]),skillIn.trim()]}));setSkillIn('');};
   const rmSkill=i=>setForm(p=>({...p,skills:p.skills.filter((_,j)=>j!==i)}));
   const addPlayable=async()=>{if(!addPS.title||!addPS.artist)return;const l=[...(profile.playableSongs||[]),{id:uid(),...addPS}];await db.collection('users').doc(user.uid).update({playableSongs:l});setProfile(p=>({...p,playableSongs:l}));setAddPS({title:'',artist:'',roles:[]});};
@@ -28,10 +58,13 @@ function ProfilePage({user,profile,setProfile,design,onDesignUpdate,bandName,set
     {/* Kopf */}
     <div className="px-4 md:px-8 pt-6 md:pt-8 pb-5 border-b border-line-2">
       <div className="flex items-center gap-4">
-        <Av name={profile.displayName} role={profile.role} size={56}/>
+        <Av name={profile.displayName} role={mainRole(profile)} size={56}/>
         <div className="flex-1 min-w-0">
           <div className="disp text-[24px] md:text-[28px] truncate">{profile.displayName}</div>
-          <div className="text-[12.5px] font-semibold mt-1" style={{color:ROLE_COLORS[profile.role]||'var(--t2)'}}>{profile.role}</div>
+          <div className="flex gap-x-2 gap-y-1 flex-wrap mt-1">
+            {rolesOf(profile).map(r=>
+              <span key={r} className="text-[12.5px] font-semibold" style={{color:ROLE_COLORS[r]||'var(--t2)'}}>{r}</span>)}
+          </div>
         </div>
         {!edit&&<Btn onClick={()=>{setEdit(true);setPtab('info');}} size="sm"><Ic name="pencil" size={13}/> Bearbeiten</Btn>}
       </div>
@@ -50,7 +83,17 @@ function ProfilePage({user,profile,setProfile,design,onDesignUpdate,bandName,set
     {ptab==='info'&&(edit
       ? <div className="max-w-[620px] flex flex-col gap-4">
           <Fld label="Name"><Inp value={form.displayName} onChange={e=>setForm(p=>({...p,displayName:e.target.value}))}/></Fld>
-          <Fld label="Rolle" hint="Färbt deine Initialen in der ganzen App."><Sel value={form.role} onChange={e=>setForm(p=>({...p,role:e.target.value}))} options={BAND_ROLES}/></Fld>
+          <Fld label={`Rollen · ${(form.roles||[]).length}`}
+            hint="Mehrere möglich — singen und Ukulele zum Beispiel. Die erste färbt deine Initialen.">
+            <div className="flex gap-1.5 flex-wrap">
+              {BAND_ROLES.map(r=>{const on=(form.roles||[]).includes(r);
+                return <button key={r} onClick={()=>toggleRole(r)}
+                  className="px-2.5 py-1.5 border text-[11.5px] cursor-pointer transition-colors duration-100"
+                  style={on
+                    ?{borderColor:ROLE_COLORS[r]||'var(--accent)',background:hexa(ROLE_COLORS[r]||'#E5A03C',.12),color:ROLE_COLORS[r]||'var(--accent)',fontWeight:600}
+                    :{borderColor:'var(--border2)',color:'var(--t3)'}}>{r}</button>;})}
+            </div>
+          </Fld>
           <Fld label="Über mich"><Txta value={form.bio||''} onChange={e=>setForm(p=>({...p,bio:e.target.value}))} placeholder="Stil, Einflüsse, Träume …" rows={3}/></Fld>
           <Fld label={`Fähigkeiten · ${form.skills?.length||0}`}>
             {(form.skills||[]).length>0&&<div className="flex gap-1.5 flex-wrap mb-2.5">
@@ -170,10 +213,37 @@ function ProfilePage({user,profile,setProfile,design,onDesignUpdate,bandName,set
         <Inp value={bandName} onChange={e=>setBandName(e.target.value)} placeholder="Name deiner Band …"/>
         <Btn onClick={saveBandName} variant="accent" style={{flexShrink:0}}>Speichern</Btn>
       </div>
+      <SectionLabel color="var(--t3)">Als App</SectionLabel>
+      <div className="mb-8">
+        {istInstalliert
+          ? <div className="flex items-center gap-2.5 px-3 py-2.5 rail-a">
+              <Ic name="check" size={15} sw={2.2} color="var(--ok)"/>
+              <span className="text-[12px] text-ink-2">Läuft als installierte App.</span>
+            </div>
+          : canInstall
+            ? <>
+                <Btn onClick={install} variant="accent" size="lg" style={{width:'100%'}}>
+                  <Ic name="plus" size={15} sw={2.2}/> Auf dem Startbildschirm installieren
+                </Btn>
+                <div className="text-[11px] text-ink-3 mt-2 leading-[1.6]">
+                  Eigenes Symbol, kein Browserrahmen — und die Blätter bleiben
+                  ohne Netz lesbar, sobald sie einmal geladen waren.
+                </div>
+              </>
+            : <div className="text-[11.5px] text-ink-2 leading-[1.7]">
+                Dein Browser bietet die Installation gerade nicht an.
+                <span className="text-ink-3"> Android/Chrome: Menü ⋮ → „App installieren“.
+                iPhone/Safari: Teilen → „Zum Home-Bildschirm“.</span>
+              </div>}
+      </div>
+
       <div className="pt-6 border-t border-line">
         <Btn onClick={()=>auth.signOut()} variant="danger" size="lg" style={{width:'100%'}}>
           <Ic name="logout" size={15}/> Abmelden
         </Btn>
+        <div className="text-[11px] text-ink-3 mt-2 leading-[1.6]">
+          Du bleibst sonst angemeldet — auch nach dem Schließen der App.
+        </div>
       </div>
     </div>}
 

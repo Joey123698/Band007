@@ -1,15 +1,18 @@
 // ════════════════════════════════════════════════════
 //  ATTENDANCE
 // ════════════════════════════════════════════════════
-function AttendanceSection({session,user,profile}){
+function AttendanceSection({session,user,profile,members}){
   const[reason,setReason]=useState('');
   const[showDecline,setShowDecline]=useState(false);
   const att=session.attendance||{};
   const mine=att[user.uid];
   const confirmed=Object.values(att).filter(v=>v.status==='confirmed');
   const declined=Object.values(att).filter(v=>v.status==='declined');
+  // Wer gar nichts gesagt hat. Ohne diese Gruppe sieht eine Probe mit
+  // einer Zusage genauso aus wie eine, bei der zwei Leute abgesagt haben.
+  const open=(members||[]).filter(m=>!att[m.id]).map(m=>({name:m.displayName,role:mainRole(m)}));
   const set=async(status)=>{
-    await db.collection('sessions').doc(session.id).update({[`attendance.${user.uid}`]:{status,reason:status==='declined'?reason:'',name:profile.displayName,role:profile.role,avatar:profile.avatar||'🎵',updatedAt:new Date().toISOString()}});
+    await db.collection('sessions').doc(session.id).update({[`attendance.${user.uid}`]:{status,reason:status==='declined'?reason:'',name:profile.displayName,role:mainRole(profile),avatar:profile.avatar||'',updatedAt:new Date().toISOString()}});
     setShowDecline(false); setReason('');
   };
   const clear=async()=>{ const u={...att}; delete u[user.uid]; await db.collection('sessions').doc(session.id).update({attendance:u}); };
@@ -48,15 +51,17 @@ function AttendanceSection({session,user,profile}){
       </button>
     </div>}
 
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-      {[{arr:confirmed,label:'Zusagen',c:'#6FA96B'},{arr:declined,label:'Absagen',c:'#C2606A'}].map(({arr,label,c})=>
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      {[{arr:confirmed,label:'Zusagen',c:'#6FA96B'},
+        {arr:declined, label:'Absagen',c:'#C2606A'},
+        {arr:open,     label:'Offen',  c:'#8E8A93'}].map(({arr,label,c})=>
         <div key={label} className="px-3 py-2.5 rounded-theme-sm border border-line">
           <div className="flex items-baseline justify-between mb-2">
             <span className="lab" style={{color:c}}>{label}</span>
             <span className="num text-[11px]" style={{color:c}}>{arr.length}</span>
           </div>
           {arr.length===0
-            ? <div className="text-[11px] text-ink-3">Noch niemand</div>
+            ? <div className="text-[11px] text-ink-3">{label==='Offen'?'Alle haben geantwortet':'Noch niemand'}</div>
             : <div className="flex flex-col gap-1.5">{arr.map((m,i)=>
                 <div key={i} className="flex gap-2 items-center">
                   <Av name={m.name} role={m.role} size={20}/>
