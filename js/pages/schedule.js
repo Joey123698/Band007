@@ -4,13 +4,17 @@
 //  Zwei Betriebsarten im Verfuegbarkeitsraster:
 //
 //  • Standardwoche — die Zeiten, die normalerweise passen.
-//    Wochentag-basiert (`availability.slots`), zum Malen mit
-//    gedrueckter Maus. Das ist die Grundeinstellung.
+//    Wochentag-basiert (`availability.slots`). Das ist die Grundlage,
+//    deshalb startet sie gleich im Malmodus.
 //
 //  • Diese Woche — echte Kalendertage. Zeigt die Standardwoche,
 //    laesst sie aber pro Datum uebersteuern (`availability.dates`).
-//    Ein Tippen waehlt das Fenster aus: wer kann, und die Probe
-//    laesst sich direkt daraus ansetzen.
+//    Startet im Ansehen-Modus: ein Tippen zeigt, wer kann, und die
+//    Probe laesst sich direkt daraus ansetzen.
+//
+//  Quer dazu liegt der Malmodus (siehe „Zeiten malen“ weiter unten).
+//  Er gilt in beiden Betriebsarten und ist ein sichtbarer Schalter,
+//  keine Geste — das haelt Tippen und Eintragen auseinander.
 // ════════════════════════════════════════════════════
 // STALE_DAYS steht in js/core/constants.js — das Dashboard braucht es auch.
 
@@ -28,7 +32,6 @@ function SchedulePage({user,profile,allSessions,allSongs,members,onPerform}){
   const[editId,setEditId]=useState(null);
   const[showCommentsId,setShowCommentsId]=useState(null);
   const[creating,setCreating]=useState(false);
-  const dragging=useRef(false),dragMode=useRef('set');
 
   const weekDays=useMemo(()=>getWeekDays(weekOff),[weekOff]);
   const dayKeys =useMemo(()=>weekDays.map(toKey),[weekDays]);
@@ -48,29 +51,140 @@ function SchedulePage({user,profile,allSessions,allSongs,members,onPerform}){
     return()=>{u1();u2();u3();};
   },[]);
 
-  const save=async next=>{
-    setMyAvail(next);
+  // ── Zeiten malen ─────────────────────────────────
+  //
+  //  Frueher lief das ueber onMouseDown/onMouseEnter. Auf dem Telefon
+  //  gibt es kein mouseenter: der Finger loest nur auf der ersten Zelle
+  //  aus, danach nichts mehr — Ziehen war schlicht unmoeglich. Jetzt
+  //  Pointer Events plus elementFromPoint, damit Maus und Finger
+  //  denselben Weg gehen.
+  //
+  //  Zwei weitere Dinge sind dabei geradegezogen:
+  //  • Der Malmodus ist ein sichtbarer Schalter statt einer Geste. Nur
+  //    solange er an ist, steht `touch-action: none` — sonst liessen
+  //    sich Seiten auf dem Telefon nicht mehr scrollen. Und er macht
+  //    das Malen auch in „Diese Woche“ moeglich, wo es vorher gar nicht
+  //    ging.
+  //  • Waehrend des Ziehens wird nur lokal geaendert; erst beim
+  //    Loslassen geht EIN Schreibvorgang raus. Vorher war es einer pro
+  //    ueberstrichener Zelle.
+  const[paintMode,setPaintMode]=useState(mode==='standard');
+  useEffect(()=>{ setPaintMode(mode==='standard'); setSel(null); },[mode]);
+
+  const gridRef=useRef(null);
+  const live=useRef(myAvail);                 // aktueller Stand waehrend des Ziehens
+  useEffect(()=>{ live.current=myAvail; },[myAvail]);
+  const painted=useRef(null);                 // schon beruehrte Zellen
+  const paintOn=useRef(true);                 // setzen oder loeschen
+  const[painting,setPainting]=useState(false);
+
+  const persist=async next=>{
     await db.collection('availability').doc(user.uid)
       .set({...next,updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
   };
+  const save=next=>{ setMyAvail(next); live.current=next; persist(next); };
 
-  // ── Standardwoche: malen wie bisher ──────────────
-  const stdSet=(d,h,on)=>{
-    const k=slotKey(d,h), slots={...myAvail.slots};
-    if(on) slots[k]=true; else delete slots[k];
-    save({...myAvail,slots});
+  const readCell=(cur,wd,h)=> mode==='standard'
+    ? !!cur.slots[slotKey(wd,h)]
+    : availAt(cur,dayKeys[wd],wd,h);
+
+  const applyCell=(wd,h,on)=>{
+    const cur=live.current;
+    let next;
+    if(mode==='standard'){
+      const slots={...cur.slots};
+      if(on) slots[slotKey(wd,h)]=true; else delete slots[slotKey(wd,h)];
+      next={...cur,slots};
+    }else{
+      // Deckt sich die Wahl wieder mit der Standardwoche, faellt der
+      // Eintrag raus — sonst sammeln sich tote Ausnahmen an.
+      const k=dateSlotKey(dayKeys[wd],h), std=!!cur.slots[slotKey(wd,h)];
+      const dates={...cur.dates};
+      if(on===std) delete dates[k]; else dates[k]=on;
+      next={...cur,dates};
+    }
+    live.current=next; setMyAvail(next);
   };
-  const handleMD=(d,h)=>{ if(mode!=='standard')return;
-    const on=!myAvail.slots[slotKey(d,h)];
-    dragging.current=true; dragMode.current=on?'set':'unset'; stdSet(d,h,on); };
-  const handleME=(d,h)=>{ if(mode!=='standard'||!dragging.current)return; stdSet(d,h,dragMode.current==='set'); };
-  useEffect(()=>{const up=()=>{dragging.current=false;};
-    window.addEventListener('mouseup',up);window.addEventListener('touchend',up);
-    return()=>{window.removeEventListener('mouseup',up);window.removeEventListener('touchend',up);};},[]);
 
-  // ── Diese Woche: pro Datum uebersteuern ──────────
-  // Deckt sich die Wahl wieder mit der Standardwoche, faellt der
-  // Eintrag raus — sonst sammeln sich tote Ausnahmen an.
+  const cellAt=(x,y)=>{
+    const el=document.elementFromPoint(x,y);
+    const c=el&&el.closest?el.closest('[data-wd]'):null;
+    return c?{wd:+c.dataset.wd,h:+c.dataset.h}:null;
+  };
+
+  // Waehrend gemalt wird, steht `touch-action: none` — die Seite laesst
+  // sich also nicht mit dem Finger scrollen. Auf einem Telefon liegen die
+  // spaeten Stunden aber unter dem Bildschirmrand. Deshalb schiebt der
+  // Rand die Seite selbst weiter, solange der Finger dort haelt, und malt
+  // dabei unter dem stehenden Finger weiter.
+  const lastPt=useRef(null);
+  const scrollVel=useRef(0);
+  const rafId=useRef(0);
+  const RAND=80;                              // Breite der Randzone
+
+  const paintAt=(x,y)=>{
+    if(!painted.current) return;
+    const c=cellAt(x,y); if(!c) return;
+    const k=c.wd+'_'+c.h;
+    if(painted.current.has(k)) return;
+    painted.current.add(k);
+    applyCell(c.wd,c.h,paintOn.current);
+  };
+
+  const tick=()=>{
+    rafId.current=0;
+    if(!painted.current) return;              // Ziehen vorbei: Schleife endet
+    if(scrollVel.current){
+      window.scrollBy(0,scrollVel.current);
+      if(lastPt.current) paintAt(lastPt.current.x,lastPt.current.y);
+    }
+    rafId.current=requestAnimationFrame(tick);
+  };
+  useEffect(()=>()=>cancelAnimationFrame(rafId.current),[]);
+
+  const onPointerDown=e=>{
+    if(!paintMode) return;
+    const c=cellAt(e.clientX,e.clientY); if(!c) return;
+    e.preventDefault();
+    try{ gridRef.current?.setPointerCapture(e.pointerId); }catch{}
+    paintOn.current=!readCell(live.current,c.wd,c.h);
+    painted.current=new Set([c.wd+'_'+c.h]);
+    lastPt.current={x:e.clientX,y:e.clientY};
+    scrollVel.current=0;
+    setPainting(true);
+    applyCell(c.wd,c.h,paintOn.current);
+    cancelAnimationFrame(rafId.current);
+    rafId.current=requestAnimationFrame(tick);
+  };
+  const onPointerMove=e=>{
+    if(!painted.current) return;
+    lastPt.current={x:e.clientX,y:e.clientY};
+    paintAt(e.clientX,e.clientY);
+    const y=e.clientY, hoehe=window.innerHeight;
+    const roh = y<RAND        ? -(RAND-y)
+              : y>hoehe-RAND  ?  (y-(hoehe-RAND))
+              : 0;
+    scrollVel.current = Math.max(-20,Math.min(20,roh*0.32));
+  };
+  const onPointerUp=e=>{
+    if(!painted.current) return;
+    painted.current=null; scrollVel.current=0; lastPt.current=null;
+    cancelAnimationFrame(rafId.current); rafId.current=0;
+    setPainting(false);
+    try{ gridRef.current?.releasePointerCapture(e.pointerId); }catch{}
+    persist(live.current);                    // genau ein Schreibvorgang
+  };
+
+  // Beim Einschalten das Raster nach oben holen — so sind moeglichst
+  // viele Stunden erreichbar. Nicht beim ersten Rendern, sonst springt
+  // die Seite schon vor dem ersten Antippen.
+  const ersterLauf=useRef(true);
+  useEffect(()=>{
+    if(ersterLauf.current){ ersterLauf.current=false; return; }
+    if(paintMode) gridRef.current?.scrollIntoView({behavior:'smooth',block:'start'});
+  },[paintMode]);
+
+  // ── Diese Woche: einzelnes Fenster ueber die Auswahl umstellen ──
   const setDate=(dateKey,wd,h,on)=>{
     const k=dateSlotKey(dateKey,h), dates={...myAvail.dates};
     const std=!!myAvail.slots[slotKey(wd,h)];
@@ -107,6 +221,10 @@ function SchedulePage({user,profile,allSessions,allSongs,members,onPerform}){
     return members.filter(m=>availAt(allAvail[m.id],sel.dateKey,sel.wd,sel.h));
   },[sel,allAvail,members]);
   const iCan = sel ? availAt(allAvail[user.uid]||myAvail,sel.dateKey,sel.wd,sel.h) : false;
+
+  // Wie viel habe ich in der gezeigten Woche ueberhaupt eingetragen?
+  const meineStunden = dayKeys.reduce((n,dk,wd)=>
+    n + HOURS.filter(h=>readCell(myAvail,wd,h)).length, 0);
 
   const staleDays=daysSince(myUpdated);
   const isStale = staleDays!=null && staleDays>=STALE_DAYS;
@@ -252,9 +370,37 @@ function SchedulePage({user,profile,allSessions,allSongs,members,onPerform}){
       </div>}
 
       {/* Raster */}
-      <div className="overflow-x-auto select-none -mx-4 px-4 md:mx-0 md:px-0">
-        <div className="min-w-[520px]">
-          <div className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))] gap-[3px] mb-2">
+      {/* Malmodus. Sichtbarer Schalter statt Geste: nur so laesst sich
+          `touch-action` gezielt abschalten, ohne das Scrollen der Seite
+          zu verlieren — und nur so ist klar, ob ein Tippen eintraegt
+          oder nachschaut. */}
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
+        <button onClick={()=>{setPaintMode(v=>!v); setSel(null);}}
+          className="flex items-center gap-2 h-10 px-3.5 border text-[12px] font-semibold cursor-pointer transition-colors duration-100"
+          style={paintMode
+            ?{background:'var(--accent)',color:'#121114',borderColor:'var(--accent)',fontWeight:700}
+            :{color:'var(--t2)',borderColor:'var(--border2)'}}>
+          <Ic name="pencil" size={14} color={paintMode?'#121114':'var(--t2)'}/>
+          {paintMode?'Fertig':'Zeiten eintragen'}
+        </button>
+        <span className="text-[11.5px] text-ink-2">
+          {paintMode
+            ? <>Über die Felder ziehen. Nochmal ziehen hebt auf.</>
+            : mode==='week'
+              ? <>Auf ein Feld tippen zeigt, wer kann.</>
+              : <>Tippe „Zeiten eintragen“, um deine Zeiten zu markieren.</>}
+        </span>
+      </div>
+
+      {/* Kein min-width mehr: das Raster passte sonst nicht auf ein Telefon
+          und lag in einem waagerechten Scroller — der hat jede Ziehgeste
+          abgefangen. Jetzt teilen sich sieben Spalten die Breite. */}
+      <div ref={gridRef} className="select-none max-w-[560px]"
+        onPointerDown={onPointerDown} onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
+        style={{touchAction:paintMode?'none':'auto'}}>
+        <div>
+          <div className="grid grid-cols-[26px_repeat(7,minmax(0,1fr))] gap-[2px] md:gap-[3px] mb-2">
             <div/>
             {weekDays.map((d,i)=>{
               const isT=mode==='week'&&dayKeys[i]===today;
@@ -269,31 +415,39 @@ function SchedulePage({user,profile,allSessions,allSongs,members,onPerform}){
             })}
           </div>
 
-          {HOURS.map(h=><div key={h} className="grid grid-cols-[36px_repeat(7,minmax(0,1fr))] gap-[3px] mb-[3px]">
-            <div className="num text-[9px] text-ink-3 flex items-center justify-end pr-1.5" style={{fontWeight:600}}>{h}</div>
+          {HOURS.map(h=><div key={h} className="grid grid-cols-[26px_repeat(7,minmax(0,1fr))] gap-[2px] md:gap-[3px] mb-[2px] md:mb-[3px]">
+            <div className="num text-[9px] text-ink-3 flex items-center justify-end pr-1" style={{fontWeight:600}}>{h}</div>
             {weekDays.map((_,wd)=>{
               const dk=dayKeys[wd];
               const k=mode==='standard'?slotKey(wd,h):dateSlotKey(dk,h);
               const cnt=counts[k]||0, t=cnt/maxCount;
               const mine=mode==='standard'?!!myAvail.slots[slotKey(wd,h)]:availAt(myAvail,dk,wd,h);
-              const isBest=best&&best[0]===k;
+              const isBest=best&&best[0]===k&&!paintMode;
               const isSel=mode==='week'&&sel&&sel.dateKey===dk&&sel.h===h;
-              return <div key={wd} role="button" tabIndex={-1}
+              return <div key={wd} data-wd={wd} data-h={h} role="button" tabIndex={-1}
                 title={`${mode==='standard'?DAYS_DE[wd]:dfmtLong(dk)} ${hlbl(h)} — ${cnt} verfügbar${mine?' (du auch)':''}`}
-                onMouseDown={()=>handleMD(wd,h)} onMouseEnter={()=>handleME(wd,h)} onTouchStart={()=>handleMD(wd,h)}
-                onClick={()=>{ if(mode==='week') setSel(isSel?null:{dateKey:dk,wd,h}); }}
-                className="h-7 border cursor-pointer flex items-center justify-center"
+                onClick={()=>{ if(!paintMode&&mode==='week') setSel(isSel?null:{dateKey:dk,wd,h}); }}
+                className="h-8 md:h-7 border cursor-pointer flex items-center justify-center transition-colors duration-75"
                 style={{
                   borderColor: isSel?'var(--text)':mine?'var(--accent)':cnt>0?'transparent':'var(--border)',
-                  background: isBest?'var(--accent)':cnt>0?hexa('#E5A03C',.06+t*.26):'transparent',
+                  // Im Malmodus zaehlt die eigene Eintragung, nicht die Hitzekarte —
+                  // sonst sieht man beim Ziehen nicht, was man gerade markiert hat.
+                  background: isBest?'var(--accent)'
+                            : mine&&paintMode?hexa('#E5A03C',.34)
+                            : cnt>0?hexa('#E5A03C',.06+t*.26):'transparent',
                 }}>
-                {cnt>0&&<span className="num text-[10px]"
+                {cnt>0&&!paintMode&&<span className="num text-[10px]"
                   style={{color:isBest?'#121114':`rgba(229,160,60,${.45+t*.55})`}}>{cnt}</span>}
+                {paintMode&&mine&&<Ic name="check" size={11} sw={3} color="var(--accent)"/>}
               </div>;
             })}
           </div>)}
         </div>
       </div>
+
+      {paintMode&&<div className="lab text-ink-3 mt-3">
+        Deine Zeiten: {meineStunden} {meineStunden===1?'Stunde':'Stunden'}
+      </div>}
 
       {/* Ausgewaehltes Fenster */}
       {mode==='week'&&sel&&<div className="mt-6 max-w-[560px] fade">

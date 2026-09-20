@@ -230,6 +230,43 @@ andere gehört zum Repertoire. Beide stehen auf derselben Seite (`songs.js`) —
 Ideen als eigener Abschnitt bzw. Filter. „→ Üben“ setzt nur `status` auf
 `practicing`; es wird nichts kopiert oder verschoben.
 
+### Zeiten eintragen (Malmodus)
+
+Das Raster lief frueher ueber `onMouseDown`/`onMouseEnter`. Auf einem
+Telefon gibt es kein `mouseenter`: der Finger loeste nur auf der ersten
+Zelle aus, danach nichts mehr — Ziehen war schlicht unmoeglich. Jetzt
+Pointer Events plus `document.elementFromPoint`, damit Maus und Finger
+denselben Weg gehen.
+
+Drei Dinge haengen daran:
+
+* **Der Malmodus ist ein sichtbarer Schalter, keine Geste.** Nur solange
+  er an ist, steht `touch-action: none` — sonst liesse sich die Seite auf
+  dem Telefon nicht mehr scrollen. Er trennt ausserdem sauber, ob ein
+  Tippen eintraegt oder nachschaut, und erlaubt das Malen auch in
+  „Diese Woche“, wo es vorher gar nicht ging. Standardwoche startet
+  eingeschaltet, Diese Woche ausgeschaltet.
+* **Der Rand scrollt selbst.** Weil `touch-action: none` das Wischen
+  abschaltet, laegen die spaeten Stunden auf einem Telefon unerreichbar
+  unter dem Bildschirmrand. Haelt der Finger in der Randzone, schiebt
+  eine `requestAnimationFrame`-Schleife die Seite weiter und malt unter
+  dem stehenden Finger mit.
+* **Ein Schreibvorgang pro Zug.** Waehrend des Ziehens wird nur lokal
+  geaendert (`live`-Ref plus `setMyAvail`); erst beim Loslassen geht ein
+  einziges `set()` raus. Vorher war es eines pro ueberstrichener Zelle —
+  ein Zug ueber zwanzig Felder waren zwanzig Schreibvorgaenge.
+
+Das Raster hat **kein** `min-width` mehr. Es lag vorher in einem
+waagerechten Scroller, der auf dem Telefon jede Ziehgeste abgefangen hat;
+jetzt teilen sich die sieben Spalten die Breite (ab `md` auf 560px
+gedeckelt). Zellen sind auf dem Telefon 32px hoch.
+
+> **Beim Testen mit einer Harness-Seite:** Die PWA-Tests hinterlassen
+> einen Service Worker auf `localhost`. Der liefert Dateien ohne `?v=`
+> aus dem Cache — man testet dann alten Code und sucht Fehler, die es
+> nicht gibt. Die Harness sollte ihn abmelden und ihre Skripte mit einem
+> eigenen Parameter laden.
+
 ### Verfügbarkeit: zwei Ebenen
 
 `slots` ist die **Standardwoche** (Wochentag 0–6 plus Stunde) und gilt für jede

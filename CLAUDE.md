@@ -102,6 +102,15 @@ Danach `js_old/` und die Harness-Dateien wieder löschen.
 * Verfügbarkeit hat zwei Ebenen: `slots` (Standardwoche, Wochentag) und
   `dates` (einzelne Kalendertage, `false` = Ausnahme). Immer über
   `availAt()` lesen, nie direkt — sonst geht der Vorrang verloren.
+* Das Verfügbarkeitsraster nutzt **Pointer Events**, nicht Maus-Events —
+  `mouseenter` feuert auf dem Telefon nie, Ziehen war dort unmöglich.
+  Der Malmodus ist ein sichtbarer Schalter, damit `touch-action: none`
+  nur dann gilt und das Scrollen der Seite nicht verlorengeht. Während
+  eines Zuges wird **lokal** geändert und erst beim Loslassen einmal
+  geschrieben; nicht auf Schreiben pro Zelle zurückbauen.
+* Beim Testen mit einer Harness-Seite den **Service Worker abmelden**.
+  Er liegt von den PWA-Tests auf `localhost` und liefert Dateien ohne
+  `?v=` aus dem Cache — sonst testet man alten Code.
 * Das Songblatt (`songs.sheet`) ist ChordPro-artiger Text; die Syntax steht
   in [ARCHITECTURE.md](ARCHITECTURE.md#das-blatt) und wird von `parseSheet()`
   in `js/core/chords.js` gelesen. `sheet` ist die **einzige** Ablage — auch
